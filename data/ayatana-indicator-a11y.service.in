@@ -1,0 +1,11 @@
+[Unit]
+Description=Ayatana Indicator Accessibility
+PartOf=graphical-session.target
+PartOf=ayatana-indicators.target
+
+[Service]
+ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/ayatana-indicator-a11y/ayatana-indicator-a11y-service
+Restart=on-failure
+
+[Install]
+WantedBy=ayatana-indicators.target

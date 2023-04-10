@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ayatana Indicator Accessibility
+Exec=@CMAKE_INSTALL_FULL_LIBEXECDIR@/ayatana-indicator-a11y/ayatana-indicator-a11y-service
+OnlyShowIn=Unity;MATE;XFCE;
+NoDisplay=true
+StartupNotify=false
+Terminal=false
