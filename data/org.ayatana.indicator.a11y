@@ -1,0 +1,10 @@
+[Indicator Service]
+Name=ayatana-indicator-a11y
+ObjectPath=/org/ayatana/indicator/a11y
+Position=5
+
+[desktop]
+ObjectPath=/org/ayatana/indicator/a11y/desktop
+
+[desktop_greeter]
+ObjectPath=/org/ayatana/indicator/a11y/desktop
