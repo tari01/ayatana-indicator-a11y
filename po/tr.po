@@ -8,31 +8,33 @@ msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-04-10 23:13+0200\n"
-"PO-Revision-Date: 2023-04-10 23:13+0200\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2023-05-12 19:48+0000\n"
+"Last-Translator: Oğuz Ersen <oguz@ersen.moe>\n"
+"Language-Team: Turkish <https://hosted.weblate.org/projects/"
+"ayatana-indicators/a11y-applet/tr/>\n"
 "Language: tr\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ASCII\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.18-dev\n"
 
 #: src/service.c:66
 msgid "Accessibility"
-msgstr ""
+msgstr "Erişilebilirlik"
 
 #: src/service.c:67 src/service.c:69
 msgid "Accessibility settings"
-msgstr ""
+msgstr "Erişilebilirlik ayarları"
 
 #: src/service.c:593
 msgid "High Contrast"
-msgstr ""
+msgstr "Yüksek Karşıtlık"
 
 #: src/service.c:598
 msgid "On-Screen Keyboard"
-msgstr ""
+msgstr "Ekran Klavyesi"
 
 #: src/service.c:603
 msgid "Screen Reader"
-msgstr ""
+msgstr "Ekran Okuyucu"
