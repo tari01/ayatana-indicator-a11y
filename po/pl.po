@@ -8,32 +8,34 @@ msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-04-10 23:13+0200\n"
-"PO-Revision-Date: 2023-04-10 23:13+0200\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2023-07-31 16:08+0000\n"
+"Last-Translator: Eryk Michalak <gnu.ewm@protonmail.com>\n"
+"Language-Team: Polish <https://hosted.weblate.org/projects/"
+"ayatana-indicators/a11y-applet/pl/>\n"
 "Language: pl\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ASCII\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
-"|| n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
+"|| n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 5.0-dev\n"
 
 #: src/service.c:66
 msgid "Accessibility"
-msgstr ""
+msgstr "Dostępność"
 
 #: src/service.c:67 src/service.c:69
 msgid "Accessibility settings"
-msgstr ""
+msgstr "Ustawienia dostępności"
 
 #: src/service.c:593
 msgid "High Contrast"
-msgstr ""
+msgstr "Wysoki kontrast"
 
 #: src/service.c:598
 msgid "On-Screen Keyboard"
-msgstr ""
+msgstr "Klawiatura ekranowa"
 
 #: src/service.c:603
 msgid "Screen Reader"
-msgstr ""
+msgstr "Czytnik ekranu"
