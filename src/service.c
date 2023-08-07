@@ -23,13 +23,6 @@
 
 static guint m_nSignal = 0;
 
-enum
-{
-    SECTION_HEADER = (1 << 0),
-    SECTION_CONTRAST = (1 << 1),
-    SECTION_TOOLS = (1 << 2)
-};
-
 struct _IndicatorA11yServicePrivate
 {
     guint nOwnId;
@@ -41,12 +34,11 @@ struct _IndicatorA11yServicePrivate
     GMenu *pSubmenu;
     guint nExportId;
     GSimpleAction *pHeaderAction;
-    GDBusConnection *pOnboardConnection;
     guint nOnboardSubscription;
-    GPid nOnboardProcess;
+    gboolean bOnboardActive;
     GSettings *pOrcaSettings;
     guint nOrcaSubscription;
-    GPid nOrcaProcess;
+    gboolean bOrcaActive;
     gboolean bHighContrast;
     GSettings *pHighContrastSettings;
     gboolean bIgnoreSettings;
@@ -82,6 +74,25 @@ static GVariant* createHeaderState (IndicatorA11yService *self)
     return g_variant_builder_end (&cBuilder);
 }
 
+static void onOnboardBus (GDBusConnection *pConnection, const gchar *sSender, const gchar *sPath, const gchar *sInterface, const gchar *sSignal, GVariant *pParameters, gpointer pUserData)
+{
+    GVariant *pDict = g_variant_get_child_value (pParameters, 1);
+    GVariant* pValue = g_variant_lookup_value (pDict, "Visible", G_VARIANT_TYPE_BOOLEAN);
+    g_variant_unref (pDict);
+
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+    gboolean bActive = g_variant_get_boolean (pValue);
+
+    if (bActive != self->pPrivate->bOnboardActive)
+    {
+        self->pPrivate->bOnboardActive = bActive;
+        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "onboard");
+        g_action_change_state (pAction, pValue);
+    }
+
+    g_variant_unref (pValue);
+}
+
 static void onBusAcquired (GDBusConnection *pConnection, const gchar *sName, gpointer pData)
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pData);
@@ -111,6 +122,12 @@ static void onBusAcquired (GDBusConnection *pConnection, const gchar *sName, gpo
     }
 
     g_free (sPath);
+
+    if (!self->pPrivate->bGreeter)
+    {
+        // Listen to Onboard messages
+        self->pPrivate->nOnboardSubscription = g_dbus_connection_signal_subscribe (self->pPrivate->pConnection, NULL, "org.freedesktop.DBus.Properties", "PropertiesChanged", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard", G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, onOnboardBus, self, NULL);
+    }
 }
 
 static void unexport (IndicatorA11yService *self)
@@ -139,34 +156,6 @@ static void onNameLost (GDBusConnection *pConnection, const gchar *sName, gpoint
     unexport (self);
 }
 
-static void onOnboardTerminated (GPid nPid, gint nStatus, gpointer pUserData)
-{
-    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
-
-    if (self->pPrivate->nOnboardProcess)
-    {
-        kill (nPid, SIGTERM);
-        self->pPrivate->nOnboardProcess = 0;
-        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "onboard");
-        GVariant *pValue = g_variant_new_boolean (FALSE);
-        g_action_change_state (pAction, pValue);
-    }
-}
-
-static void onOrcaTerminated (GPid nPid, gint nStatus, gpointer pUserData)
-{
-    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
-
-    if (self->pPrivate->nOrcaProcess)
-    {
-        kill (nPid, SIGTERM);
-        self->pPrivate->nOrcaProcess = 0;
-        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "orca");
-        GVariant *pValue = g_variant_new_boolean (FALSE);
-        g_action_change_state (pAction, pValue);
-    }
-}
-
 static void onDispose (GObject *pObject)
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pObject);
@@ -175,12 +164,7 @@ static void onDispose (GObject *pObject)
     {
         if (self->pPrivate->nOnboardSubscription)
         {
-            g_dbus_connection_signal_unsubscribe (self->pPrivate->pOnboardConnection, self->pPrivate->nOnboardSubscription);
-        }
-
-        if (self->pPrivate->pOnboardConnection)
-        {
-            g_object_unref (self->pPrivate->pOnboardConnection);
+            g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nOnboardSubscription);
         }
 
         if (self->pPrivate->pOrcaSettings)
@@ -203,11 +187,6 @@ static void onDispose (GObject *pObject)
             g_free (self->pPrivate->sThemeIcon);
         }
     }
-    else
-    {
-        onOnboardTerminated (self->pPrivate->nOnboardProcess, 0, self);
-        onOrcaTerminated (self->pPrivate->nOrcaProcess, 0, self);
-    }
 
     if (self->pPrivate->nOwnId)
     {
@@ -224,25 +203,6 @@ static void onDispose (GObject *pObject)
     G_OBJECT_CLASS (indicator_a11y_service_parent_class)->dispose (pObject);
 }
 
-static void onOnboardBus (GDBusConnection *pConnection, const gchar *sSender, const gchar *sPath, const gchar *sInterface, const gchar *sSignal, GVariant *pParameters, gpointer pUserData)
-{
-    GVariant *pDict = g_variant_get_child_value (pParameters, 1);
-    GVariant* pValue = g_variant_lookup_value (pDict, "Visible", G_VARIANT_TYPE_BOOLEAN);
-    g_variant_unref (pDict);
-
-    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
-    gboolean bActive = g_variant_get_boolean (pValue);
-
-    if (bActive != self->pPrivate->nOnboardProcess)
-    {
-        self->pPrivate->nOnboardProcess = bActive;
-        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "onboard");
-        g_action_change_state (pAction, pValue);
-    }
-
-    g_variant_unref (pValue);
-}
-
 static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
 {
     g_simple_action_set_state (pAction, pValue);
@@ -250,68 +210,40 @@ static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer p
     gboolean bActive = g_variant_get_boolean (pValue);
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    if (bActive != (gboolean) self->pPrivate->nOnboardProcess)
+    if (bActive != self->pPrivate->bOnboardActive)
     {
+        gchar *sFunction = NULL;
+
+        if (bActive)
+        {
+            sFunction = "Show";
+        }
+        else
+        {
+            sFunction = "Hide";
+        }
+
         GError *pError = NULL;
 
         if (!self->pPrivate->bGreeter)
         {
-            GError *pError = NULL;
-            GDBusProxy *pProxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard", NULL, &pError);
-
-            if (pError)
-            {
-                g_error ("Panic: Failed to contact Onboard: %s", pError->message);
-                g_error_free (pError);
-
-                return;
-            }
-
-            if (pProxy)
-            {
-                gchar *sFunction = NULL;
-
-                if (bActive)
-                {
-                    sFunction = "Show";
-                }
-                else
-                {
-                    sFunction = "Hide";
-                }
-
-                g_dbus_proxy_call_sync (pProxy, sFunction, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
-                g_object_unref (pProxy);
-            }
-
-            self->pPrivate->nOnboardProcess = bActive;
+            g_dbus_connection_call_sync (self->pPrivate->pConnection, "org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard", sFunction, NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
         }
         else
         {
-            // FIXME: This will not work until Actica exports its $DISPLAY
-            if (bActive)
-            {
-                gchar *lArg[3] = {"onboard", "--xid", NULL};
-                g_spawn_async (NULL, lArg, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &self->pPrivate->nOnboardProcess, &pError);
-
-                if (pError)
-                {
-                    g_error ("Panic: Failed to launch Onboard: %s", pError->message);
-                    g_error_free (pError);
-
-                    return;
-                }
-
-                if (self->pPrivate->nOnboardProcess)
-                {
-                    g_child_watch_add (self->pPrivate->nOnboardProcess, (GChildWatchFunc) onOnboardTerminated, self);
-                }
-            }
-            else
-            {
-                onOnboardTerminated (self->pPrivate->nOnboardProcess, 0, self);
-            }
+            GVariant *pParam = g_variant_new ("(b)", bActive);
+            g_dbus_connection_call_sync (self->pPrivate->pConnection, "org.ArcticaProject.ArcticaGreeter", "/org/ArcticaProject/ArcticaGreeter", "org.ArcticaProject.ArcticaGreeter", "ToggleOnBoard", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
         }
+
+        if (pError)
+        {
+            g_error ("Panic: Failed to toggle Onboard: %s", pError->message);
+            g_error_free (pError);
+
+            return;
+        }
+
+        self->pPrivate->bOnboardActive = bActive;
     }
 }
 
@@ -321,37 +253,25 @@ static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUse
 
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    // FIXME: This will not work until Actica exports its $DISPLAY
     if (self->pPrivate->bGreeter)
     {
         gboolean bActive = g_variant_get_boolean (pValue);
 
-        if (bActive != (gboolean) self->pPrivate->nOrcaProcess)
+        if (bActive != self->pPrivate->bOrcaActive)
         {
             GError *pError = NULL;
+            GVariant *pParam = g_variant_new ("(b)", bActive);
+            g_dbus_connection_call_sync (self->pPrivate->pConnection, "org.ArcticaProject.ArcticaGreeter", "/org/ArcticaProject/ArcticaGreeter", "org.ArcticaProject.ArcticaGreeter", "ToggleOrca", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
 
-            if (bActive)
+            if (pError)
             {
-                gchar *lArg[2] = {"orca", NULL};
-                g_spawn_async (NULL, lArg, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &self->pPrivate->nOrcaProcess, &pError);
+                g_error ("Panic: Failed to toggle Orca: %s", pError->message);
+                g_error_free (pError);
 
-                if (pError)
-                {
-                    g_error ("Panic: Failed to launch Orca: %s", pError->message);
-                    g_error_free (pError);
-
-                    return;
-                }
-
-                if (self->pPrivate->nOrcaProcess)
-                {
-                    g_child_watch_add (self->pPrivate->nOrcaProcess, (GChildWatchFunc) onOrcaTerminated, self);
-                }
+                return;
             }
-            else
-            {
-                onOrcaTerminated (self->pPrivate->nOrcaProcess, 0, self);
-            }
+
+            self->pPrivate->bOrcaActive = bActive;
         }
     }
 }
@@ -446,9 +366,8 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     const char *sUser = g_get_user_name();
     self->pPrivate->bGreeter = g_str_equal (sUser, "lightdm");
 
-    self->pPrivate->nOnboardProcess = 0;
-    self->pPrivate->nOrcaProcess = 0;
-
+    self->pPrivate->bOnboardActive = FALSE;
+    self->pPrivate->bOrcaActive = FALSE;
     self->pPrivate->sThemeGtk = NULL;
     self->pPrivate->sThemeIcon = NULL;
     self->pPrivate->bIgnoreSettings = FALSE;
@@ -504,21 +423,6 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 g_error ("Panic: No org.mate.interface schema found");
             }
         }
-
-        // Listen to Onboard messages
-        GError *pError = NULL;
-
-        self->pPrivate->pOnboardConnection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &pError);
-
-        if (pError)
-        {
-            g_error ("Panic: Failed connecting to the session bus: %s", pError->message);
-            g_error_free (pError);
-
-            return;
-        }
-
-        self->pPrivate->nOnboardSubscription = g_dbus_connection_signal_subscribe (self->pPrivate->pOnboardConnection, NULL, "org.freedesktop.DBus.Properties", "PropertiesChanged", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard", G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, onOnboardBus, self, NULL);
     }
     else
     {
@@ -551,12 +455,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     GVariant *pContrast = g_variant_new_boolean (self->pPrivate->bHighContrast);
     pAction = g_simple_action_new_stateful ("contrast", G_VARIANT_TYPE_BOOLEAN, pContrast);
 
-    if (self->pPrivate->bGreeter)
-    {
-        // FIXME: Arctica should watch for a theme change signal
-        g_settings_bind_with_mapping (self->pPrivate->pHighContrastSettings, "high-contrast", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
-    }
-    else
+    if (!self->pPrivate->bGreeter)
     {
         /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
         g_settings_bind_with_mapping (self->pPrivate->pHighContrastSettings, "high-contrast", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);*/
@@ -571,13 +470,13 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     g_object_unref (G_OBJECT (pAction));
 
-    GVariant *pOnboard = g_variant_new_boolean (self->pPrivate->nOnboardProcess);
+    GVariant *pOnboard = g_variant_new_boolean (self->pPrivate->bOnboardActive);
     pAction = g_simple_action_new_stateful ("onboard", G_VARIANT_TYPE_BOOLEAN, pOnboard);
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pAction));
     g_signal_connect (pAction, "change-state", G_CALLBACK (onOnboardState), self);
     g_object_unref (G_OBJECT (pAction));
 
-    GVariant *pOrca = g_variant_new_boolean (self->pPrivate->nOrcaProcess);
+    GVariant *pOrca = g_variant_new_boolean (self->pPrivate->bOrcaActive);
     pAction = g_simple_action_new_stateful ("orca", G_VARIANT_TYPE_BOOLEAN, pOrca);
     g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pAction));
