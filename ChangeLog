@@ -1,0 +1,104 @@
+2023-09-15 Mike Gabriel
+
+        * release 0.0.2 (HEAD -> main, tag: 0.0.2)
+        * Merge branch 'tari01-pr/icon-and-position-fix' (240eb7c)
+
+2023-09-15 Robert Tari
+
+        * data/org.ayatana.indicator.a11y: Send indicator to the opposite end
+          (9faf768)
+
+2023-09-11 Mike Gabriel
+
+        * release 0.0.1 (25002d9) (tag: 0.0.1)
+
+2023-08-07 Mike Gabriel
+
+        * Merge branch 'tari01-pr/arctica-d-bus' (7627117)
+
+2023-07-04 Robert Tari
+
+        * src/service.c: Rewrite/add OnBoard/Orca D-Bus code for Arctica
+          (8814b3d)
+
+2023-07-30 Eryk Michalak
+
+        * Translated using Weblate (Polish) (f872ba2)
+
+2023-07-01 Luna Jernberg
+
+        * Translated using Weblate (Swedish) (02eb9f4)
+
+2023-07-01 spnux
+
+        * Translated using Weblate (French) (2063fbc)
+
+2023-06-27 Sylke Vicious
+
+        * Translated using Weblate (Italian) (38c3728)
+
+2023-06-25 ssantos
+
+        * Translated using Weblate (Portuguese) (c8d6f64)
+
+2023-06-22 Milan Korecky
+
+        * Translated using Weblate (Czech) (46a5e1e)
+
+2023-06-22 Joan CiberSheep
+
+        * Translated using Weblate (Catalan) (ddc6cc7)
+
+2023-06-22 Jozef Mlich
+
+        * Translated using Weblate (Czech) (873ff83)
+
+2023-06-14 Sergii Horichenko
+
+        * Translated using Weblate (Ukrainian) (a0a7e56)
+        * Translated using Weblate (Russian) (4c85672)
+
+2023-05-20 Milo Ivir
+
+        * Translated using Weblate (Croatian) (83ae5c2)
+
+2023-05-11 Oğuz Ersen
+
+        * Translated using Weblate (Turkish) (89e0428)
+
+2023-05-10 gallegonovato
+
+        * Translated using Weblate (Spanish) (aa32a91)
+
+2023-05-08 Wellington Terumi Uemura
+
+        * Translated using Weblate (Portuguese (Brazil)) (0962b98)
+
+2023-05-09 Quentin PAGÈS
+
+        * Translated using Weblate (Occitan) (15d59bf)
+
+2023-05-09 Yaron Shahrabani
+
+        * Translated using Weblate (Hebrew) (d14970a)
+
+2023-05-08 Heimen Stoffels
+
+        * Translated using Weblate (Dutch) (c125459)
+
+2023-05-08 Mike Gabriel
+
+        * Translated using Weblate (German) (24c75d1)
+        * po/: Drop ku translatio file. (0c1b09b)
+
+2023-04-27 Mike Gabriel
+
+        * Merge branch 'tari01-pr/initial-commit' (e1a6427)
+
+2023-04-10 Robert Tari
+
+        * Initial commit (9701ddc)
+
+2023-04-06 Robert Tari
+
+        * Initial commit (4264e2d)

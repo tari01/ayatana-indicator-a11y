@@ -1,1 +1,13 @@
+ayatana-indicator-a11y (0.0.2-0) UNRELEASED; urgency=medium
 
+  * Upstream-provided Debian package for ayatana-indicator-a11y.
+    See upstream ChangeLog for recent changes.
+
+ -- Mike Gabriel <mike.gabriel@das-netzwerkteam.de>  Fri, 15 Sep 2023 15:57:37 +0200
+
+ayatana-indicator-a11y (0.0.1-0) unstable; urgency=medium
+
+  * Upstream-provided Debian package for ayatana-indicator-a11y.
+    See upstream ChangeLog for recent changes.
+
+ -- Mike Gabriel <mike.gabriel@das-netzwerkteam.de>  Mon, 11 Sep 2023 22:04:57 +0200
