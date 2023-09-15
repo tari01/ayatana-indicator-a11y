@@ -1,7 +1,7 @@
 [Indicator Service]
 Name=ayatana-indicator-a11y
 ObjectPath=/org/ayatana/indicator/a11y
-Position=5
+Position=-20
 
 [desktop]
 ObjectPath=/org/ayatana/indicator/a11y/desktop
