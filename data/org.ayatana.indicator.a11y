@@ -8,3 +8,4 @@ ObjectPath=/org/ayatana/indicator/a11y/desktop
 
 [desktop_greeter]
 ObjectPath=/org/ayatana/indicator/a11y/desktop
+Position=1100
