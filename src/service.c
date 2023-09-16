@@ -279,14 +279,12 @@ static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUse
 static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
 {
     g_simple_action_set_state (pAction, pValue);
-
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+    gboolean bActive = g_variant_get_boolean (pValue);
 
-    if (!self->pPrivate->bGreeter)
+    if (bActive != self->pPrivate->bHighContrast)
     {
-        gboolean bActive = g_variant_get_boolean (pValue);
-
-        if (bActive != self->pPrivate->bHighContrast)
+        if (!self->pPrivate->bGreeter)
         {
             self->pPrivate->bIgnoreSettings = TRUE;
 
@@ -305,9 +303,24 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", self->pPrivate->sThemeIcon);
             }
 
-            self->pPrivate->bHighContrast = bActive;
             self->pPrivate->bIgnoreSettings = FALSE;
         }
+        else
+        {
+            GError *pError = NULL;
+            GVariant *pParam = g_variant_new ("(b)", bActive);
+            g_dbus_connection_call_sync (self->pPrivate->pConnection, "org.ArcticaProject.ArcticaGreeter", "/org/ArcticaProject/ArcticaGreeter", "org.ArcticaProject.ArcticaGreeter", "ToggleHighContrast", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
+
+            if (pError)
+            {
+                g_error ("Panic: Failed to toggle high contrast: %s", pError->message);
+                g_error_free (pError);
+
+                return;
+            }
+        }
+
+        self->pPrivate->bHighContrast = bActive;
     }
 }
 
@@ -460,14 +473,13 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
         /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
         g_settings_bind_with_mapping (self->pPrivate->pHighContrastSettings, "high-contrast", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);*/
 
-        g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pAction));
-
         // Workaround for applications that do not react to "high-contrast" setting
-        g_signal_connect (pAction, "change-state", G_CALLBACK (onContrastState), self);
         g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::gtk-theme", G_CALLBACK (onContrastSettings), self);
         g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::icon-theme", G_CALLBACK (onContrastSettings), self);
     }
 
+    g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pAction));
+    g_signal_connect (pAction, "change-state", G_CALLBACK (onContrastState), self);
     g_object_unref (G_OBJECT (pAction));
 
     GVariant *pOnboard = g_variant_new_boolean (self->pPrivate->bOnboardActive);
