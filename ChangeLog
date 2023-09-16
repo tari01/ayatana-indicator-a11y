@@ -1,6 +1,22 @@
+2023-09-16 Mike Gabriel
+
+        * release 23.9.0 (HEAD -> main, tag: 23.9.0)
+        * Merge branch 'tari01-pr/hicontrast-dbus' (c232082)
+
+2023-09-16 Robert Tari
+
+        * src/service.c: Toggle greeter high contrast via D-Bus (a7ae531)
+
+2023-09-15 Robert Tari
+
+        * Merge branch 'sunweaver-pr/greeter-pos-of-a11y-indicator' (d600a5c)
+
 2023-09-15 Mike Gabriel
 
-        * release 0.0.2 (HEAD -> main, tag: 0.0.2)
+        * data/org.ayatana.indicator.a11y: In Arctica Greeter the a11y
+          indicator shall be placed on the very left, i.e. left of
+          appindicator items (mainly nm-applet). (2d39c92)
+        * release 0.0.2 (cc96ce5) (tag: 0.0.2)
         * Merge branch 'tari01-pr/icon-and-position-fix' (240eb7c)
 
 2023-09-15 Robert Tari

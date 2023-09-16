@@ -1,3 +1,9 @@
+Overview of changes in ayatana-indicator-a11y 23.9.0
+
+  - Adjust position for desktop_greeter mode.
+  - Use DBus to notify Arctica Greeter about high contrast toggle switch
+    changes.
+
 Overview of changes in ayatana-indicator-a11y 0.0.2
 
   - Move a11y Indicator nearly to the very left of the indicator area on
