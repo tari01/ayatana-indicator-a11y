@@ -36,9 +36,11 @@ struct _IndicatorA11yServicePrivate
     GSimpleAction *pHeaderAction;
     guint nOnboardSubscription;
     gboolean bOnboardActive;
+    GSettings *pOnboardActiveSettings;
     GSettings *pOrcaSettings;
     guint nOrcaSubscription;
     gboolean bOrcaActive;
+    GSettings *pOrcaActiveSettings;
     gboolean bHighContrast;
     GSettings *pHighContrastSettings;
     gboolean bIgnoreSettings;
@@ -172,6 +174,14 @@ static void onDispose (GObject *pObject)
             g_clear_object (&self->pPrivate->pOrcaSettings);
         }
 
+        if (self->pPrivate->pOrcaActiveSettings)
+        {
+            g_clear_object (&self->pPrivate->pOrcaActiveSettings);
+        }
+        if (self->pPrivate->pOnboardActiveSettings)
+        {
+            g_clear_object (&self->pPrivate->pOnboardActiveSettings);
+        }
         if (self->pPrivate->pHighContrastSettings)
         {
             g_clear_object (&self->pPrivate->pHighContrastSettings);
@@ -446,6 +456,14 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
             if (pSchema)
             {
+                g_settings_schema_unref (pSchema);
+                self->pPrivate->pOnboardActiveSettings = g_settings_new ("org.ArcticaProject.arctica-greeter");
+                self->pPrivate->bOnboardActive = g_settings_get_boolean (self->pPrivate->pOnboardActiveSettings, "onscreen-keyboard");
+
+                g_settings_schema_unref (pSchema);
+                self->pPrivate->pOrcaActiveSettings = g_settings_new ("org.ArcticaProject.arctica-greeter");
+                self->pPrivate->bOrcaActive = g_settings_get_boolean (self->pPrivate->pOrcaActiveSettings, "screen-reader");
+
                 g_settings_schema_unref (pSchema);
                 self->pPrivate->pHighContrastSettings = g_settings_new ("org.ArcticaProject.arctica-greeter");
                 self->pPrivate->bHighContrast = g_settings_get_boolean (self->pPrivate->pHighContrastSettings, "high-contrast");
