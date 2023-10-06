@@ -39,11 +39,9 @@ struct _IndicatorA11yServicePrivate
     GSimpleAction *pHeaderAction;
     guint nOnboardSubscription;
     gboolean bOnboardActive;
-    GSettings *pOnboardActiveSettings;
     GSettings *pOrcaSettings;
     guint nOrcaSubscription;
     gboolean bOrcaActive;
-    GSettings *pOrcaActiveSettings;
     gboolean bHighContrast;
     GSettings *pHighContrastSettings;
     gboolean bIgnoreSettings;
@@ -259,52 +257,39 @@ static void onDispose (GObject *pObject)
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pObject);
 
-    if (!self->pPrivate->bGreeter)
+    if (self->pPrivate->nOnboardSubscription)
     {
-        if (self->pPrivate->nOnboardSubscription)
-        {
-            g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nOnboardSubscription);
-        }
-
-        if (self->pPrivate->pOrcaSettings)
-        {
-            g_clear_object (&self->pPrivate->pOrcaSettings);
-        }
-
-        if (self->pPrivate->pOrcaActiveSettings)
-        {
-            g_clear_object (&self->pPrivate->pOrcaActiveSettings);
-        }
-        if (self->pPrivate->pOnboardActiveSettings)
-        {
-            g_clear_object (&self->pPrivate->pOnboardActiveSettings);
-        }
-        if (self->pPrivate->pHighContrastSettings)
-        {
-            g_clear_object (&self->pPrivate->pHighContrastSettings);
-        }
-
-        if (self->pPrivate->sThemeGtk)
-        {
-            g_free (self->pPrivate->sThemeGtk);
-        }
-
-        if (self->pPrivate->sThemeIcon)
-        {
-            g_free (self->pPrivate->sThemeIcon);
-        }
+        g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nOnboardSubscription);
     }
-    else
-    {
-        if (self->pPrivate->nGreeterSubscription)
-        {
-            g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nGreeterSubscription);
-        }
 
-        if (self->pPrivate->lUsers)
-        {
-            g_slist_free (self->pPrivate->lUsers);
-        }
+    if (self->pPrivate->pHighContrastSettings)
+    {
+        g_clear_object (&self->pPrivate->pHighContrastSettings);
+    }
+
+    if (self->pPrivate->sThemeGtk)
+    {
+        g_free (self->pPrivate->sThemeGtk);
+    }
+
+    if (self->pPrivate->sThemeIcon)
+    {
+        g_free (self->pPrivate->sThemeIcon);
+    }
+
+    if (self->pPrivate->nGreeterSubscription)
+    {
+        g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nGreeterSubscription);
+    }
+
+    if (self->pPrivate->lUsers)
+    {
+        g_slist_free (self->pPrivate->lUsers);
+    }
+
+    if (self->pPrivate->pOrcaSettings)
+    {
+        g_clear_object (&self->pPrivate->pOrcaSettings);
     }
 
     if (self->pPrivate->nOwnId)
@@ -592,10 +577,11 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
             if (pSchema)
             {
                 g_settings_schema_unref (pSchema);
-                self->pPrivate->pOnboardActiveSettings = g_settings_new (GREETER_SETTINGS);
-                self->pPrivate->bOnboardActive = g_settings_get_boolean (self->pPrivate->pOnboardActiveSettings, "onscreen-keyboard");
-                self->pPrivate->pOrcaActiveSettings = g_settings_new (GREETER_SETTINGS);
-                self->pPrivate->bOrcaActive = g_settings_get_boolean (self->pPrivate->pOrcaActiveSettings, "screen-reader");
+                GSettings *pOnboardSettings = g_settings_new (GREETER_SETTINGS);
+                self->pPrivate->bOnboardActive = g_settings_get_boolean (pOnboardSettings, "onscreen-keyboard");
+                g_clear_object (&pOnboardSettings);
+                self->pPrivate->pOrcaSettings = g_settings_new (GREETER_SETTINGS);
+                self->pPrivate->bOrcaActive = g_settings_get_boolean (self->pPrivate->pOrcaSettings, "screen-reader");
                 self->pPrivate->pHighContrastSettings = g_settings_new (GREETER_SETTINGS);
                 self->pPrivate->bHighContrast = g_settings_get_boolean (self->pPrivate->pHighContrastSettings, "high-contrast");
             }
