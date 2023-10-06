@@ -14,6 +14,7 @@ requires:
     - cmake-extras
     - intltool
     - glib2
+    - accountsservice
 
   debian:
     # Useful URL: https://salsa.debian.org/debian-ayatana-team/ayatana-ido
@@ -27,6 +28,7 @@ requires:
     - intltool
     - libglib2.0-dev
     - systemd
+    - libaccountsservice-dev
 
   ubuntu:
     - clang
@@ -38,6 +40,7 @@ requires:
     - intltool
     - libglib2.0-dev
     - systemd
+    - libaccountsservice-dev
 
 variables:
   - 'CHECKERS="
