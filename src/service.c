@@ -504,7 +504,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     GVariant *pOrca = g_variant_new_boolean (self->pPrivate->bOrcaActive);
     pAction = g_simple_action_new_stateful ("orca", G_VARIANT_TYPE_BOOLEAN, pOrca);
-    g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+
+    if (!self->pPrivate->bGreeter)
+    {
+        g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+    }
+
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pAction));
     g_signal_connect (pAction, "change-state", G_CALLBACK (onOrcaState), self);
     g_object_unref (G_OBJECT (pAction));
