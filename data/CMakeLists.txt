@@ -19,3 +19,18 @@ install (FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.desktop" DESTI
 # org.ayatana.indicator.a11y
 
 install (FILES "${CMAKE_CURRENT_SOURCE_DIR}/org.ayatana.indicator.a11y" DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/ayatana/indicators")
+
+# org.ayatana.indicator.a11y.AccountsService.xml
+
+install (FILES org.ayatana.indicator.a11y.AccountsService.xml DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/dbus-1/interfaces")
+install (DIRECTORY DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/accountsservice/interfaces/")
+install (CODE "message(STATUS \"Symlinking: \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/accountsservice/interfaces/org.ayatana.indicator.a11y.AccountsService.xml\")")
+install (CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ../../dbus-1/interfaces/org.ayatana.indicator.a11y.AccountsService.xml \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_DATADIR}/accountsservice/interfaces/org.ayatana.indicator.a11y.AccountsService.xml)")
+
+# org.ayatana.indicator.a11y.AccountsService.policy
+
+install (FILES org.ayatana.indicator.a11y.AccountsService.policy DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/polkit-1/actions")
+
+# 50-org.ayatana.indicator.a11y.AccountsService.pkla
+
+install (FILES 50-org.ayatana.indicator.a11y.AccountsService.pkla DESTINATION "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/polkit-1/localauthority/10-vendor.d")
