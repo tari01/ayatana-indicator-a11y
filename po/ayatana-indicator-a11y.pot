@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-04-10 23:13+0200\n"
+"POT-Creation-Date: 2023-10-10 23:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,22 +17,22 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/service.c:66
+#: src/service.c:64
 msgid "Accessibility"
 msgstr ""
 
-#: src/service.c:67 src/service.c:69
+#: src/service.c:65 src/service.c:67
 msgid "Accessibility settings"
 msgstr ""
 
-#: src/service.c:593
+#: src/service.c:645
 msgid "High Contrast"
 msgstr ""
 
-#: src/service.c:598
+#: src/service.c:650
 msgid "On-Screen Keyboard"
 msgstr ""
 
-#: src/service.c:603
+#: src/service.c:655
 msgid "Screen Reader"
 msgstr ""
