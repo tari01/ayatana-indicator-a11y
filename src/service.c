@@ -21,8 +21,8 @@
 
 #define BUS_NAME "org.ayatana.indicator.a11y"
 #define BUS_PATH "/org/ayatana/indicator/a11y"
-#define GREETER_BUS_NAME "org.ArcticaProject.ArcticaGreeter"
-#define GREETER_BUS_PATH "/org/ArcticaProject/ArcticaGreeter"
+#define GREETER_BUS_NAME "org.ayatana.greeter"
+#define GREETER_BUS_PATH "/org/ayatana/greeter"
 #define GREETER_SETTINGS "org.ArcticaProject.arctica-greeter"
 
 static guint m_nSignal = 0;
