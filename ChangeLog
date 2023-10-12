@@ -1,6 +1,51 @@
+2023-10-12 Mike Gabriel
+
+        * release 23.10.0 (HEAD -> main, tag: 23.10.0)
+        * Merge branch 'tari01-pr/polkit-rules' (929fb47)
+
+2023-10-11 Robert Tari
+
+        * Add PolicyKit .rules file (9034372)
+
+2023-10-10 Mike Gabriel
+
+        * po/: Update translation files. (3b14bd4)
+        * Merge branch 'tari01-pr/add-accountsservice' (2a2957b)
+
+2023-10-10 Robert Tari
+
+        * src/service.c: Rename greeter D-Bus name and path (4c296c7)
+
+2023-10-06 Robert Tari
+
+        * debian/control: Add libaccountsservice-dev dependency (c04e2e9)
+        * .build.yml: Add libaccountsservice-dev dependency (414532c)
+
+2023-10-07 Robert Tari
+
+        * src/service.c: Simplify GSettings code (c0aee6d)
+
+2023-10-06 Robert Tari
+
+        * Synchronise greeter states to session (43cbc2b)
+        * Add AccountsService data files (0d551e2)
+        * src/service.c: Bind Orca settings only when not in Greeter
+          (3ff2798)
+
+2023-10-02 Robert Tari
+
+        * Merge branch 'sunweaver-pr/greeter-initialize-toggle-switches'
+          (b73b037)
+        * src/service.c: Fix multiple GSettingsSchema unreferencing (3078fae)
+
+2023-09-21 Mike Gabriel
+
+        * greeter: Initialize screen reader and OSK correctly when run in
+          greeter mode. (03c7116)
+
 2023-09-16 Mike Gabriel
 
-        * release 23.9.0 (HEAD -> main, tag: 23.9.0)
+        * release 23.9.0 (eec852a) (tag: 23.9.0)
         * Merge branch 'tari01-pr/hicontrast-dbus' (c232082)
 
 2023-09-16 Robert Tari

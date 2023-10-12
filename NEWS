@@ -1,3 +1,12 @@
+Overview of changes in ayatana-indicator-a11y 23.10.0
+
+  - Initialize screen reader and OSK correctly when run in
+    greeter mode.
+  - Bind Orca settings only when not in Greeter.
+  - Synchronise greeter states to session.
+  - Rename greeter D-Bus name and path.
+  - Add PolicyKit .rules file.
+
 Overview of changes in ayatana-indicator-a11y 23.9.0
 
   - Adjust position for desktop_greeter mode.
