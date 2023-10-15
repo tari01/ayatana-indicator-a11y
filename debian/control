@@ -27,6 +27,6 @@ Depends: ${shlibs:Depends},
          espeak-ng,
 Description: Ayatana Indicator for Accessibility Settings
  This package contains the accessibility indicator, which should show
- as an icon in the top panel of indicator aware destkop environments.
+ as an icon in the top panel of indicator aware desktop environments.
  .
  It can be used to toggle and access various accessibility features.
