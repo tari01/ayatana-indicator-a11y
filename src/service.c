@@ -80,6 +80,29 @@ static GVariant* createHeaderState (IndicatorA11yService *self)
     return g_variant_builder_end (&cBuilder);
 }
 
+static void toggleScreensaverOnboard (gboolean bActive)
+{
+    GSettingsSchemaSource *pSource = g_settings_schema_source_get_default ();
+    GSettingsSchema *pSchema = NULL;
+
+    if (pSource)
+    {
+        pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
+
+        if (pSchema)
+        {
+            g_settings_schema_unref (pSchema);
+            GSettings *pSettings = g_settings_new ("org.mate.screensaver");
+            g_settings_set_boolean (pSettings, "embedded-keyboard-enabled", bActive);
+            g_clear_object (&pSettings);
+        }
+        else
+        {
+            g_error ("Panic: No org.mate.screensaver schema found");
+        }
+    }
+}
+
 static void onOnboardBus (GDBusConnection *pConnection, const gchar *sSender, const gchar *sPath, const gchar *sInterface, const gchar *sSignal, GVariant *pParameters, gpointer pUserData)
 {
     GVariant *pDict = g_variant_get_child_value (pParameters, 1);
@@ -91,6 +114,7 @@ static void onOnboardBus (GDBusConnection *pConnection, const gchar *sSender, co
 
     if (bActive != self->pPrivate->bOnboardActive)
     {
+        toggleScreensaverOnboard (bActive);
         self->pPrivate->bOnboardActive = bActive;
         GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "onboard");
         g_action_change_state (pAction, pValue);
@@ -332,6 +356,7 @@ static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer p
         if (!self->pPrivate->bGreeter)
         {
             g_dbus_connection_call_sync (self->pPrivate->pConnection, "org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard", sFunction, NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
+            toggleScreensaverOnboard (bActive);
         }
         else
         {
@@ -562,6 +587,42 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
             else
             {
                 g_error ("Panic: No org.mate.interface schema found");
+            }
+
+            pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
+
+            if (pSchema)
+            {
+                g_settings_schema_unref (pSchema);
+                GSettings *pSettings = g_settings_new ("org.mate.screensaver");
+                gchar *sCommand = g_settings_get_string (pSettings, "embedded-keyboard-command");
+                gboolean bSetCommand = FALSE;
+
+                if (!sCommand)
+                {
+                    bSetCommand = TRUE;
+                }
+                else
+                {
+                    glong nLength = g_utf8_strlen (sCommand, -1);
+                    g_free (sCommand);
+
+                    if (!nLength)
+                    {
+                        bSetCommand = TRUE;
+                    }
+                }
+
+                if (bSetCommand)
+                {
+                    g_settings_set_string (pSettings, "embedded-keyboard-command", "onboard --xid");
+                }
+
+                g_clear_object (&pSettings);
+            }
+            else
+            {
+                g_error ("Panic: No org.mate.screensaver schema found");
             }
         }
 
