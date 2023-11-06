@@ -1,3 +1,8 @@
+Overview of changes in ayatana-indicator-a11y 23.10.1
+
+  - Sync screensaver and session state of OnBoard.
+  - Translation updates.
+
 Overview of changes in ayatana-indicator-a11y 23.10.0
 
   - Initialize screen reader and OSK correctly when run in

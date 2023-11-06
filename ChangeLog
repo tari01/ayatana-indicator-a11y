@@ -1,6 +1,33 @@
+2023-11-06 Mike Gabriel
+
+        * release 23.10.1 (HEAD -> main, tag: 23.10.1)
+
+2023-11-02 Mike Gabriel
+
+        * Merge branch 'tari01-pr/screensaver-onboard' (8687af1)
+
+2023-11-02 Robert Tari
+
+        * src/service.c: Sync screensaver and session state of OnBoard
+          (1fc14fb)
+
+2023-10-24 Moo
+
+        * Translated using Weblate (Lithuanian) (19d5e3b)
+
+2023-10-22 Weblate
+
+        * Added translation using Weblate (Kurdish) (370d5b9)
+
+2023-10-15 Mike Gabriel
+
+        * debian/control: Typo fix in LONG_DESCRIPTION. Thanks to Ionic for
+          spotting this. (cd03e40)
+
 2023-10-12 Mike Gabriel
 
-        * release 23.10.0 (HEAD -> main, tag: 23.10.0)
+        * d/changelog: post-release update to 23.10.0-0 (c696bf6)
+        * release 23.10.0 (c12afc0) (tag: 23.10.0)
         * Merge branch 'tari01-pr/polkit-rules' (929fb47)
 
 2023-10-11 Robert Tari
