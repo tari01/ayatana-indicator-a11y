@@ -1,6 +1,19 @@
+2023-12-04 Mike Gabriel
+
+        * release 23.10.2 (HEAD -> main, tag: 23.10.2)
+        * Merge branch 'tari01-pr/two-way-accountsservice' (844374b)
+
+2023-12-04 Robert Tari
+
+        * src/service.c: Set AccounsService properties in both directions
+          (7a9fb4f)
+        * Store last used Gtk and icon themes (4c6cafb)
+        * data/org.ayatana.indicator.a11y.AccountsService.xml: Rename
+          properties to match action names (d5e6b9c)
+
 2023-11-06 Mike Gabriel
 
-        * release 23.10.1 (HEAD -> main, tag: 23.10.1)
+        * release 23.10.1 (33ecd67) (tag: 23.10.1)
 
 2023-11-02 Mike Gabriel
 
