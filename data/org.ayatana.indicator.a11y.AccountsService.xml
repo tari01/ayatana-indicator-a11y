@@ -4,13 +4,13 @@
         <annotation name="org.freedesktop.Accounts.Authentication.ChangeOwn" value="org.ayatana.indicator.a11y.AccountsService.ModifyOwnUser"/>
         <annotation name="org.freedesktop.Accounts.Authentication.ReadAny" value="org.ayatana.indicator.a11y.AccountsService.ModifyAnyUser"/>
         <annotation name="org.freedesktop.Accounts.Authentication.ChangeAny" value="org.ayatana.indicator.a11y.AccountsService.ModifyAnyUser"/>
-        <property name="OrcaEnabled" type="b" access="readwrite">
+        <property name="orca" type="b" access="readwrite">
             <annotation name="org.freedesktop.Accounts.DefaultValue" value="false"/>
         </property>
-        <property name="OnBoardEnabled" type="b" access="readwrite">
+        <property name="onboard" type="b" access="readwrite">
             <annotation name="org.freedesktop.Accounts.DefaultValue" value="false"/>
         </property>
-        <property name="HighContrastEnabled" type="b" access="readwrite">
+        <property name="contrast" type="b" access="readwrite">
             <annotation name="org.freedesktop.Accounts.DefaultValue" value="false"/>
         </property>
     </interface>

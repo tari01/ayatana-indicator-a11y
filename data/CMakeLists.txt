@@ -38,3 +38,8 @@ install (FILES 50-org.ayatana.indicator.a11y.AccountsService.pkla DESTINATION "$
 # 50-org.ayatana.indicator.a11y.AccountsService.rules
 
 install (FILES 50-org.ayatana.indicator.a11y.AccountsService.rules DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/polkit-1/rules.d")
+
+# org.ayatana.indicator.a11y.gschema.xml
+
+find_package (GSettings REQUIRED)
+add_schema ("org.ayatana.indicator.a11y.gschema.xml")

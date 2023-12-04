@@ -1,0 +1,14 @@
+<schemalist gettext-domain="ayatana-indicator-a11y">
+  <schema id="org.ayatana.indicator.a11y" path="/org/ayatana/indicator/a11y/">
+    <key name="gtk-theme" type="s">
+      <default>''</default>
+      <summary>Previous Gtk theme</summary>
+      <description>The Gtk theme used before high contrast mode was enabled.</description>
+    </key>
+    <key name="icon-theme" type="s">
+      <default>''</default>
+      <summary>Previous icon theme</summary>
+      <description>The icon theme used before high contrast mode was enabled.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -17,6 +17,7 @@
 #include <glib/gi18n.h>
 #include <gio/gio.h>
 #include <act/act.h>
+#include <pwd.h>
 #include "service.h"
 
 #define BUS_NAME "org.ayatana.indicator.a11y"
@@ -51,6 +52,9 @@ struct _IndicatorA11yServicePrivate
     GSList *lUsers;
     gchar *sUser;
     guint nGreeterSubscription;
+    gboolean bReadingAccountsService;
+    GDBusConnection *pAccountsServiceConnection;
+    GSettings *pSettings;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -123,6 +127,38 @@ static void onOnboardBus (GDBusConnection *pConnection, const gchar *sSender, co
     g_variant_unref (pValue);
 }
 
+static void getAccountsService (IndicatorA11yService *self, gint nUid)
+{
+    self->pPrivate->bReadingAccountsService = TRUE;
+    gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
+    GDBusProxy *pProxy = g_dbus_proxy_new_sync (self->pPrivate->pAccountsServiceConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
+    g_free (sPath);
+
+    if (pProxy)
+    {
+        const gchar *lProperties[] = {"orca", "onboard", "contrast"};
+
+        for (gint nIndex = 0; nIndex < 3; nIndex++)
+        {
+            GVariant *pParams = g_variant_new ("(ss)", "org.ayatana.indicator.a11y.AccountsService", lProperties[nIndex]);
+            GVariant *pValue = g_dbus_proxy_call_sync (pProxy, "Get", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+
+            if (pValue)
+            {
+                GVariant *pChild0 = g_variant_get_child_value (pValue, 0);
+                g_variant_unref (pValue);
+                GVariant *pChild1 = g_variant_get_child_value (pChild0, 0);
+                g_variant_unref (pChild0);
+                GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), lProperties[nIndex]);
+                g_action_change_state (pAction, pChild1);
+                g_variant_unref (pChild1);
+            }
+        }
+    }
+
+    self->pPrivate->bReadingAccountsService = FALSE;
+}
+
 static void onUserLoaded (IndicatorA11yService *self, ActUser *pUser)
 {
     g_signal_handlers_disconnect_by_func (G_OBJECT (pUser), G_CALLBACK (onUserLoaded), self);
@@ -153,23 +189,7 @@ static void onUserLoaded (IndicatorA11yService *self, ActUser *pUser)
         if (bSame)
         {
             gint nUid = act_user_get_uid (pUser);
-            gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
-            GDBusConnection *pConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, NULL);
-            GDBusProxy *pProxy = g_dbus_proxy_new_sync (pConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
-            GVariant *pOrcaValue = g_variant_new ("b", self->pPrivate->bOrcaActive);
-            GVariant *pOrcaParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", "OrcaEnabled", pOrcaValue);
-            GVariant *pOrcaRet = g_dbus_proxy_call_sync (pProxy, "Set", pOrcaParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-            g_variant_unref (pOrcaRet);
-            GVariant *pOnboardValue = g_variant_new ("b", self->pPrivate->bOnboardActive);
-            GVariant *pOnboardParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", "OnBoardEnabled", pOnboardValue);
-            GVariant *pOnboardRet = g_dbus_proxy_call_sync (pProxy, "Set", pOnboardParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-            g_variant_unref (pOnboardRet);
-            GVariant *pContrastValue = g_variant_new ("b", self->pPrivate->bHighContrast);
-            GVariant *pContrastParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", "HighContrastEnabled", pContrastValue);
-            GVariant *pContrastRet = g_dbus_proxy_call_sync (pProxy, "Set", pContrastParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-            g_variant_unref (pContrastRet);
-            g_object_unref (pConnection);
-            g_free (sPath);
+            getAccountsService (self, nUid);
         }
     }
 }
@@ -324,11 +344,42 @@ static void onDispose (GObject *pObject)
 
     unexport (self);
 
+    g_clear_object (&self->pPrivate->pSettings);
     g_clear_object (&self->pPrivate->pHeaderAction);
     g_clear_object (&self->pPrivate->pActionGroup);
     g_clear_object (&self->pPrivate->pConnection);
+    g_clear_object (&self->pPrivate->pAccountsServiceConnection);
 
     G_OBJECT_CLASS (indicator_a11y_service_parent_class)->dispose (pObject);
+}
+
+static void setAccountsService (IndicatorA11yService *self, gchar *sProperty, GVariant *pValue)
+{
+    gint nUid = 0;
+
+    if (!self->pPrivate->bGreeter)
+    {
+        nUid = geteuid ();
+    }
+    else if (self->pPrivate->sUser)
+    {
+        const struct passwd *pPasswd = getpwnam (self->pPrivate->sUser);
+
+        if (pPasswd)
+        {
+            nUid = pPasswd->pw_uid;
+        }
+    }
+
+    if (nUid)
+    {
+        gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
+        GDBusProxy *pProxy = g_dbus_proxy_new_sync (self->pPrivate->pAccountsServiceConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
+        g_free (sPath);
+        GVariant *pParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", sProperty, pValue);
+        GVariant *pRet = g_dbus_proxy_call_sync (pProxy, "Set", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+        g_variant_unref (pRet);
+    }
 }
 
 static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
@@ -374,9 +425,10 @@ static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer p
 
         self->pPrivate->bOnboardActive = bActive;
 
-        if (self->pPrivate->bGreeter)
+        if (!self->pPrivate->bReadingAccountsService)
         {
-            loadManager (self);
+            GVariant *pValue = g_variant_new ("b", bActive);
+            setAccountsService (self, "onboard", pValue);
         }
     }
 }
@@ -406,7 +458,12 @@ static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUse
             }
 
             self->pPrivate->bOrcaActive = bActive;
-            loadManager (self);
+
+            if (!self->pPrivate->bReadingAccountsService)
+            {
+                GVariant *pValue = g_variant_new ("b", bActive);
+                setAccountsService (self, "orca", pValue);
+            }
         }
     }
 }
@@ -431,6 +488,8 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
                 self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", "ContrastHigh");
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", "ContrastHigh");
+                g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
+                g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
             }
             else
             {
@@ -457,9 +516,10 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
 
         self->pPrivate->bHighContrast = bActive;
 
-        if (self->pPrivate->bGreeter)
+        if (!self->pPrivate->bReadingAccountsService)
         {
-            loadManager (self);
+            GVariant *pValue = g_variant_new ("b", bActive);
+            setAccountsService (self, "contrast", pValue);
         }
     }
 }
@@ -480,11 +540,13 @@ static void onContrastSettings (GSettings *pSettings, const gchar *sKey, gpointe
     {
         g_free (self->pPrivate->sThemeGtk);
         self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
+        g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
     }
     else if (bThemeIcon)
     {
         g_free (self->pPrivate->sThemeIcon);
         self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
+        g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
     }
 
     bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
@@ -525,8 +587,18 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     self->pPrivate->sThemeIcon = NULL;
     self->pPrivate->bIgnoreSettings = FALSE;
     self->pPrivate->lUsers = NULL;
-    GError *pError = NULL;
     self->pPrivate->sUser = NULL;
+    self->pPrivate->bReadingAccountsService = FALSE;
+    GError *pError = NULL;
+    self->pPrivate->pAccountsServiceConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &pError);
+
+    if (pError)
+    {
+        g_error ("Panic: Failed connecting to the system bus: %s", pError->message);
+        g_error_free (pError);
+
+        return;
+    }
 
     self->pPrivate->pConnection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &pError);
 
@@ -546,83 +618,108 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
         // Get the settings
         if (pSource)
         {
-            pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.applications", FALSE);
+            pSchema = g_settings_schema_source_lookup (pSource, "org.ayatana.indicator.a11y", FALSE);
 
             if (pSchema)
             {
                 g_settings_schema_unref (pSchema);
-                self->pPrivate->pOrcaSettings = g_settings_new ("org.gnome.desktop.a11y.applications");
-            }
-            else
-            {
-                g_error ("Panic: No org.gnome.desktop.a11y.applications schema found");
-            }
+                self->pPrivate->pSettings = g_settings_new ("org.ayatana.indicator.a11y");
+                pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.applications", FALSE);
 
-            /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
-            pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.interface", FALSE);
-
-            if (pSchema)
-            {
-                g_settings_schema_unref (pSchema);
-                self->pPrivate->pHighContrastSettings = g_settings_new ("org.gnome.desktop.a11y.interface");
-                self->pPrivate->bHighContrast = g_settings_get_boolean (self->pPrivate->pHighContrastSettings, "high-contrast");
-            }
-            else
-            {
-                g_error ("Panic: No org.gnome.desktop.a11y.interface schema found");
-            }*/
-
-            pSchema = g_settings_schema_source_lookup (pSource, "org.mate.interface", FALSE);
-
-            if (pSchema)
-            {
-                g_settings_schema_unref (pSchema);
-                self->pPrivate->pHighContrastSettings = g_settings_new ("org.mate.interface");
-                self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
-                self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
-                gboolean bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
-                gboolean bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
-                self->pPrivate->bHighContrast = (bThemeGtk && bThemeIcon);
-            }
-            else
-            {
-                g_error ("Panic: No org.mate.interface schema found");
-            }
-
-            pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
-
-            if (pSchema)
-            {
-                g_settings_schema_unref (pSchema);
-                GSettings *pSettings = g_settings_new ("org.mate.screensaver");
-                gchar *sCommand = g_settings_get_string (pSettings, "embedded-keyboard-command");
-                gboolean bSetCommand = FALSE;
-
-                if (!sCommand)
+                if (pSchema)
                 {
-                    bSetCommand = TRUE;
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pOrcaSettings = g_settings_new ("org.gnome.desktop.a11y.applications");
                 }
                 else
                 {
-                    glong nLength = g_utf8_strlen (sCommand, -1);
-                    g_free (sCommand);
+                    g_error ("Panic: No org.gnome.desktop.a11y.applications schema found");
+                }
+
+                /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
+                pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.interface", FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pHighContrastSettings = g_settings_new ("org.gnome.desktop.a11y.interface");
+                    self->pPrivate->bHighContrast = g_settings_get_boolean (self->pPrivate->pHighContrastSettings, "high-contrast");
+                }
+                else
+                {
+                    g_error ("Panic: No org.gnome.desktop.a11y.interface schema found");
+                }*/
+
+                pSchema = g_settings_schema_source_lookup (pSource, "org.mate.interface", FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pHighContrastSettings = g_settings_new ("org.mate.interface");
+                    self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pSettings, "gtk-theme");
+                    glong nLength = g_utf8_strlen (self->pPrivate->sThemeGtk, -1);
 
                     if (!nLength)
                     {
+                        self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
+                    }
+
+                    self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
+                    nLength = g_utf8_strlen (self->pPrivate->sThemeIcon, -1);
+
+                    if (!nLength)
+                    {
+                        self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
+                    }
+
+                    gboolean bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
+                    gboolean bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
+                    self->pPrivate->bHighContrast = (bThemeGtk && bThemeIcon);
+                }
+                else
+                {
+                    g_error ("Panic: No org.mate.interface schema found");
+                }
+
+                pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    GSettings *pSettings = g_settings_new ("org.mate.screensaver");
+                    gchar *sCommand = g_settings_get_string (pSettings, "embedded-keyboard-command");
+                    gboolean bSetCommand = FALSE;
+
+                    if (!sCommand)
+                    {
                         bSetCommand = TRUE;
                     }
-                }
+                    else
+                    {
+                        glong nLength = g_utf8_strlen (sCommand, -1);
+                        g_free (sCommand);
 
-                if (bSetCommand)
+                        if (!nLength)
+                        {
+                            bSetCommand = TRUE;
+                        }
+                    }
+
+                    if (bSetCommand)
+                    {
+                        g_settings_set_string (pSettings, "embedded-keyboard-command", "onboard --xid");
+                    }
+
+                    g_clear_object (&pSettings);
+                }
+                else
                 {
-                    g_settings_set_string (pSettings, "embedded-keyboard-command", "onboard --xid");
+                    g_error ("Panic: No org.mate.screensaver schema found");
                 }
-
-                g_clear_object (&pSettings);
             }
             else
             {
-                g_error ("Panic: No org.mate.screensaver schema found");
+                g_error ("Panic: No org.ayatana.indicator.a11y schema found");
             }
         }
 
@@ -737,35 +834,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     if (!self->pPrivate->bGreeter)
     {
         gint nUid = geteuid ();
-        gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
-        GDBusConnection *pConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, NULL);
-        GDBusProxy *pProxy = g_dbus_proxy_new_sync (pConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
-
-        if (pProxy)
-        {
-            const gchar *lProperties[] = {"OrcaEnabled", "OnBoardEnabled", "HighContrastEnabled"};
-            const gchar *lActions[] = {"orca", "onboard", "contrast"};
-
-            for (gint nIndex = 0; nIndex < 3; nIndex++)
-            {
-                GVariant *pParams = g_variant_new ("(ss)", "org.ayatana.indicator.a11y.AccountsService", lProperties[nIndex]);
-                GVariant *pValue = g_dbus_proxy_call_sync (pProxy, "Get", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-
-                if (pValue)
-                {
-                    GVariant *pChild0 = g_variant_get_child_value (pValue, 0);
-                    g_variant_unref (pValue);
-                    GVariant *pChild1 = g_variant_get_child_value (pChild0, 0);
-                    g_variant_unref (pChild0);
-                    GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), lActions[nIndex]);
-                    g_action_change_state (pAction, pChild1);
-                    g_variant_unref (pChild1);
-                }
-            }
-        }
-
-        g_object_unref (pConnection);
-        g_free (sPath);
+        getAccountsService (self, nUid);
     }
 }
 
