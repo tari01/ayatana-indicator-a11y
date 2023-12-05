@@ -10,5 +10,10 @@
       <summary>Previous icon theme</summary>
       <description>The icon theme used before high contrast mode was enabled.</description>
     </key>
+    <key name="magnifier" type="s">
+      <default>'magnus'</default>
+      <summary>Screen magnifier</summary>
+      <description>The screen magnifier application the indicator should use.</description>
+    </key>
   </schema>
 </schemalist>
