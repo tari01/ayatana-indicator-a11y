@@ -35,7 +35,7 @@ include (GNUInstallDirs)
 find_package (PkgConfig REQUIRED)
 include (CheckIncludeFile)
 include (FindPkgConfig)
-pkg_check_modules (SERVICE_DEPS REQUIRED glib-2.0>=2.36 gio-2.0>=2.36 accountsservice)
+pkg_check_modules (SERVICE_DEPS REQUIRED glib-2.0>=2.36 gio-2.0>=2.36 accountsservice libayatana-common)
 include_directories (SYSTEM ${SERVICE_DEPS_INCLUDE_DIRS})
 
 # Build

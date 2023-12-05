@@ -6,6 +6,7 @@ Build-Depends: cmake,
                cmake-extras (>= 0.10),
                libglib2.0-dev (>= 2.36),
                libaccountsservice-dev,
+               libayatana-common-dev (>= 0.9.9),
 # for packaging
                debhelper (>= 10),
                dh-systemd | hello,
@@ -25,6 +26,7 @@ Depends: ${shlibs:Depends},
          onboard,
          orca,
          espeak-ng,
+         ayatana-indicator-common,
 Description: Ayatana Indicator for Accessibility Settings
  This package contains the accessibility indicator, which should show
  as an icon in the top panel of indicator aware desktop environments.

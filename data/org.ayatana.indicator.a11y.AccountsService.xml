@@ -13,5 +13,8 @@
         <property name="contrast" type="b" access="readwrite">
             <annotation name="org.freedesktop.Accounts.DefaultValue" value="false"/>
         </property>
+        <property name="magnifier" type="b" access="readwrite">
+            <annotation name="org.freedesktop.Accounts.DefaultValue" value="false"/>
+        </property>
     </interface>
 </node>

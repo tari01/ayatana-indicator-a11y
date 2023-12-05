@@ -15,6 +15,7 @@ requires:
     - intltool
     - glib2
     - accountsservice
+#    - libayatana-common
 
   debian:
     # Useful URL: https://salsa.debian.org/debian-ayatana-team/ayatana-ido
@@ -29,6 +30,9 @@ requires:
     - libglib2.0-dev
     - systemd
     - libaccountsservice-dev
+#    - libayatana-common-dev
+# For building libayatana-common:
+    - liblomiri-url-dispatcher-dev
 
   ubuntu:
     - clang
@@ -41,6 +45,7 @@ requires:
     - libglib2.0-dev
     - systemd
     - libaccountsservice-dev
+#    - libayatana-common-dev
 
 variables:
   - 'CHECKERS="
@@ -59,6 +64,22 @@ variables:
     -enable-checker alpha.unix.cstring.OutOfBounds
     -enable-checker alpha.core.FixedAddr
     -enable-checker security.insecureAPI.strcpy"'
+
+before_scripts:
+  - cd ${START_DIR}
+  - if [ ! -d libayatana-common-build ]; then
+  -     git clone --depth 1  https://github.com/AyatanaIndicators/libayatana-common.git libayatana-common-build
+  - fi
+  - cd libayatana-common-build
+  - if [ ${DISTRO_NAME} == "debian" ]; then
+  -     cmake . -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_LOMIRI_FEATURES=ON
+  - else
+  -     cmake . -DCMAKE_INSTALL_PREFIX=/usr
+  - fi
+  - make
+  - make install
+  - cd -
+  - rm -Rf libayatana-common-build/
 
 build_scripts:
   - if [ ${DISTRO_NAME} == "debian" ];then
