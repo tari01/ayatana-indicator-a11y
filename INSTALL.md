@@ -8,6 +8,8 @@
  - gio-2.0 (>=2.36)
  - intltool
  - systemd
+ - libayatana-common
+ - accountsservice
 
 ## For end-users and packagers
 
