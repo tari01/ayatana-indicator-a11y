@@ -18,6 +18,7 @@
 #include <gio/gio.h>
 #include <act/act.h>
 #include <pwd.h>
+#include <ayatana/common/utils.h>
 #include "service.h"
 
 #define BUS_NAME "org.ayatana.indicator.a11y"
@@ -55,6 +56,9 @@ struct _IndicatorA11yServicePrivate
     gboolean bReadingAccountsService;
     GDBusConnection *pAccountsServiceConnection;
     GSettings *pSettings;
+    gboolean bMagnifierActive;
+    gchar *sMagnifier;
+    GPid nMagnifier;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -136,9 +140,9 @@ static void getAccountsService (IndicatorA11yService *self, gint nUid)
 
     if (pProxy)
     {
-        const gchar *lProperties[] = {"orca", "onboard", "contrast"};
+        const gchar *lProperties[] = {"orca", "onboard", "contrast", "magnifier"};
 
-        for (gint nIndex = 0; nIndex < 3; nIndex++)
+        for (gint nIndex = 0; nIndex < 4; nIndex++)
         {
             GVariant *pParams = g_variant_new ("(ss)", "org.ayatana.indicator.a11y.AccountsService", lProperties[nIndex]);
             GVariant *pValue = g_dbus_proxy_call_sync (pProxy, "Get", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
@@ -321,6 +325,11 @@ static void onDispose (GObject *pObject)
         g_free (self->pPrivate->sThemeIcon);
     }
 
+    if (self->pPrivate->sMagnifier)
+    {
+        g_free (self->pPrivate->sMagnifier);
+    }
+
     if (self->pPrivate->nGreeterSubscription)
     {
         g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nGreeterSubscription);
@@ -429,6 +438,83 @@ static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer p
         {
             GVariant *pValue = g_variant_new ("b", bActive);
             setAccountsService (self, "onboard", pValue);
+        }
+    }
+}
+
+static void onMagnifierExit (GPid nPid, gint nStatus, gpointer pData)
+{
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pData);
+    self->pPrivate->bMagnifierActive = FALSE;
+    self->pPrivate->nMagnifier = 0;
+    GVariant *pActionValue = g_variant_new ("b", FALSE);
+    GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "magnifier");
+    g_simple_action_set_state (G_SIMPLE_ACTION (pAction), pActionValue);
+
+    if (!self->pPrivate->bReadingAccountsService)
+    {
+        GVariant *pValue = g_variant_new ("b", FALSE);
+        setAccountsService (self, "magnifier", pValue);
+    }
+}
+
+static void onMagnifierState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
+{
+    g_simple_action_set_state (pAction, pValue);
+
+    gboolean bActive = g_variant_get_boolean (pValue);
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+
+    if (bActive != self->pPrivate->bMagnifierActive)
+    {
+        GError *pError = NULL;
+
+        if (!self->pPrivate->bGreeter)
+        {
+            if (bActive)
+            {
+                gboolean bFound = ayatana_common_utils_have_program (self->pPrivate->sMagnifier);
+
+                if (!bFound)
+                {
+                    gchar *sMessage = g_strdup_printf (_("The %s program is required for this action, but it was not found."), self->pPrivate->sMagnifier);
+                    ayatana_common_utils_zenity_warning ("dialog-warning", _("Warning"), sMessage);
+                    g_free (sMessage);
+
+                    return;
+                }
+                else
+                {
+                    gchar *lParams[] = {self->pPrivate->sMagnifier, NULL};
+                    g_spawn_async (NULL, lParams, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &self->pPrivate->nMagnifier, &pError);
+                    g_child_watch_add (self->pPrivate->nMagnifier, onMagnifierExit, self);
+                }
+            }
+            else if (self->pPrivate->nMagnifier)
+            {
+                kill (self->pPrivate->nMagnifier, SIGTERM);
+            }
+        }
+        else
+        {
+            GVariant *pParam = g_variant_new ("(b)", bActive);
+            g_dbus_connection_call_sync (self->pPrivate->pConnection, GREETER_BUS_NAME, GREETER_BUS_PATH, GREETER_BUS_NAME, "ToggleMagnifier", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
+        }
+
+        if (pError)
+        {
+            g_error ("Panic: Failed to toggle magnifier: %s", pError->message);
+            g_error_free (pError);
+
+            return;
+        }
+
+        self->pPrivate->bMagnifierActive = bActive;
+
+        if (!self->pPrivate->bReadingAccountsService)
+        {
+            GVariant *pValue = g_variant_new ("b", bActive);
+            setAccountsService (self, "magnifier", pValue);
         }
     }
 }
@@ -583,6 +669,9 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     self->pPrivate->sUser = NULL;
     self->pPrivate->bOnboardActive = FALSE;
     self->pPrivate->bOrcaActive = FALSE;
+    self->pPrivate->bMagnifierActive = FALSE;
+    self->pPrivate->sMagnifier = NULL;
+    self->pPrivate->nMagnifier = 0;
     self->pPrivate->sThemeGtk = NULL;
     self->pPrivate->sThemeIcon = NULL;
     self->pPrivate->bIgnoreSettings = FALSE;
@@ -675,6 +764,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                     gboolean bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
                     gboolean bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
                     self->pPrivate->bHighContrast = (bThemeGtk && bThemeIcon);
+                    self->pPrivate->sMagnifier = g_settings_get_string (self->pPrivate->pSettings, "magnifier");
                 }
                 else
                 {
@@ -795,6 +885,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onOrcaState), self);
     g_object_unref (G_OBJECT (pSimpleAction));
 
+    GVariant *pMagnifier = g_variant_new_boolean (self->pPrivate->bMagnifierActive);
+    pSimpleAction = g_simple_action_new_stateful ("magnifier", G_VARIANT_TYPE_BOOLEAN, pMagnifier);
+    g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
+    g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onMagnifierState), self);
+    g_object_unref (G_OBJECT (pSimpleAction));
+
     // Add sections to the submenu
     self->pPrivate->pSubmenu = g_menu_new();
     GMenu *pSection = g_menu_new();
@@ -811,6 +907,11 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     g_object_unref (pItem);
 
     pItem = g_menu_item_new (_("Screen Reader"), "indicator.orca");
+    g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
+    g_menu_append_item (pSection, pItem);
+    g_object_unref (pItem);
+
+    pItem = g_menu_item_new (_("Screen Magnifier"), "indicator.magnifier");
     g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
     g_menu_append_item (pSection, pItem);
     g_object_unref (pItem);
