@@ -1,6 +1,36 @@
+2023-12-26 Mike Gabriel
+
+        * release 23.10.3 (HEAD -> main, tag: 23.10.3)
+
+2023-12-06 Mike Gabriel
+
+        * Merge branch 'tari01-pr/sync-magnifier-with-greeter' (1a14d6b)
+
+2023-12-06 Robert Tari
+
+        * src/service.c: Synchronise magnifier logic with changes to Arctica
+          Greeter (407c097)
+
+2023-12-05 Mike Gabriel
+
+        * Merge branch 'tari01-pr/add-magnifier' (b16607d)
+
 2023-12-04 Mike Gabriel
 
-        * release 23.10.2 (HEAD -> main, tag: 23.10.2)
+        * release 23.10.2 (a02d92e)
+
+2023-12-05 Robert Tari
+
+        * INSTALL.md: Update dependencies (c9cb5a7)
+        * debian/common: Add dependencies (472f607)
+        * .build.yml: Build libayatana-common dependency (984edf8)
+        * src/service.c: Add magnifier toggling logic (c85190d)
+        * CMakeLists.txt: Add libayatana-common dependency (dc92708)
+        * data/*: Store screen magnifier application name and state (4d7e446)
+
+2023-12-04 Mike Gabriel
+
+        * release 23.10.2 (5e59037) (tag: 23.10.2)
         * Merge branch 'tari01-pr/two-way-accountsservice' (844374b)
 
 2023-12-04 Robert Tari

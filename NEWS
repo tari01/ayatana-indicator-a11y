@@ -1,3 +1,9 @@
+Overview of changes in ayatana-indicator-a11y 23.10.3
+
+  - Add magnifier toggling logic.
+  - src/service.c: Synchronise magnifier logic with changes to Arctica
+    Greeter.
+
 Overview of changes in ayatana-indicator-a11y 23.10.2
 
   - data/org.ayatana.indicator.a11y.AccountsService.xml: Rename
