@@ -72,7 +72,14 @@ static GVariant* createHeaderState (IndicatorA11yService *self)
     g_variant_builder_init (&cBuilder, G_VARIANT_TYPE ("a{sv}"));
     g_variant_builder_add (&cBuilder, "{sv}", "title", g_variant_new_string (_("Accessibility")));
     g_variant_builder_add (&cBuilder, "{sv}", "tooltip", g_variant_new_string (_("Accessibility settings")));
-    g_variant_builder_add (&cBuilder, "{sv}", "visible", g_variant_new_boolean (TRUE));
+    /* a11y indicator is not usable in Lomiri, so let's hide it when running in Lomiri */
+    if (ayatana_common_utils_is_lomiri()) {
+        g_variant_builder_add (&cBuilder, "{sv}", "visible", g_variant_new_boolean (FALSE));
+    }
+    else
+    {
+        g_variant_builder_add (&cBuilder, "{sv}", "visible", g_variant_new_boolean (TRUE));
+    }
     g_variant_builder_add (&cBuilder, "{sv}", "accessible-desc", g_variant_new_string (_("Accessibility settings")));
 
     GIcon *pIcon = g_themed_icon_new_with_default_fallbacks ("preferences-desktop-accessibility-panel");
