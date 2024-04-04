@@ -15,5 +15,11 @@
       <summary>Screen magnifier</summary>
       <description>The screen magnifier application the indicator should use.</description>
     </key>
+    <key name="scale" type="d">
+      <range min="0.5" max="1.5"/>
+      <default>1.0</default>
+      <summary>User interface scale</summary>
+      <description>The scale of the user interface.</description>
+    </key>
   </schema>
 </schemalist>
