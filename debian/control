@@ -7,6 +7,8 @@ Build-Depends: cmake,
                libglib2.0-dev (>= 2.36),
                libaccountsservice-dev,
                libayatana-common-dev (>= 0.9.9),
+               libx11-dev,
+               libxrandr-dev,
 # for packaging
                debhelper (>= 10),
                dh-systemd | hello,
