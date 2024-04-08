@@ -15,6 +15,8 @@ requires:
     - intltool
     - glib2
     - accountsservice
+    - libx11
+    - libxrandr
 #    - libayatana-common
 
   debian:
@@ -33,6 +35,8 @@ requires:
 #    - libayatana-common-dev
 # For building libayatana-common:
     - liblomiri-url-dispatcher-dev
+    - libx11-dev
+    - libxrandr-dev
 
   ubuntu:
     - clang
@@ -46,6 +50,8 @@ requires:
     - systemd
     - libaccountsservice-dev
 #    - libayatana-common-dev
+    - libx11-dev
+    - libxrandr-dev
 
 variables:
   - 'CHECKERS="

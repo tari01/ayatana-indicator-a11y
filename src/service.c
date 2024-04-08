@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Robert Tari <robert@tari.in>
+ * Copyright 2023-2024 Robert Tari <robert@tari.in>
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, as published
@@ -18,6 +18,9 @@
 #include <gio/gio.h>
 #include <act/act.h>
 #include <pwd.h>
+#include <math.h>
+#include <X11/Xlib.h>
+#include <X11/extensions/Xrandr.h>
 #include <ayatana/common/utils.h>
 #include "service.h"
 
@@ -60,6 +63,7 @@ struct _IndicatorA11yServicePrivate
     gboolean bMagnifierActive;
     gchar *sMagnifier;
     GPid nMagnifier;
+    gdouble fScale;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -537,6 +541,178 @@ static void onMagnifierState (GSimpleAction *pAction, GVariant* pValue, gpointer
     }
 }
 
+static void onScaleState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
+{
+    g_simple_action_set_state (pAction, pValue);
+
+    gdouble fScale = g_variant_get_double (pValue);
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+
+    if (fScale != self->pPrivate->fScale)
+    {
+        Display *pDisplay = XOpenDisplay (NULL);
+
+        if (!pDisplay)
+        {
+            g_error ("Panic: Failed to open X display");
+
+            return;
+        }
+
+        XGrabServer (pDisplay);
+        guint nScreen = DefaultScreen (pDisplay);
+        Window pWindow = RootWindow (pDisplay, nScreen);
+        XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
+
+        if (!pResources)
+        {
+            g_error ("Panic: Failed to get screen resources");
+            XCloseDisplay (pDisplay);
+
+            return;
+        }
+
+        guint nScreenWidth = 0;
+        guint nScreenHeight = 0;
+
+        // Get the Dpi
+        gint nDisplayHeight = DisplayHeight (pDisplay, nScreen);
+        gint nDisplayHeightMetric = DisplayHeightMM (pDisplay, nScreen);
+        gdouble fDpi = (25.4 * nDisplayHeight) / nDisplayHeightMetric;
+
+        // Scale the primary display
+        guint nPrimaryWidth = 0;
+        guint nPrimaryHeight = 0;
+        RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
+        XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
+
+        if (pOutputInfo->connection == RR_Connected && pOutputInfo->crtc)
+        {
+            XRRCrtcInfo *pCrtcInfo = XRRGetCrtcInfo (pDisplay, pResources, pOutputInfo->crtc);
+
+            if (!pCrtcInfo)
+            {
+                g_error ("Panic: Failed to get CRTC info");
+                XRRFreeOutputInfo (pOutputInfo);
+                XRRFreeScreenResources (pResources);
+                XCloseDisplay (pDisplay);
+
+                return;
+            }
+
+            XTransform cTransform;
+            memset (&cTransform, 0, sizeof (cTransform));
+            cTransform.matrix[0][0] = XDoubleToFixed (fScale);
+            cTransform.matrix[1][1] = XDoubleToFixed (fScale);
+            cTransform.matrix[2][2] = XDoubleToFixed (1.0);
+            gchar *sFilter = NULL;
+
+            if (fScale == 0.5 || fScale == 1.0 || fScale == 2.0)
+            {
+                sFilter = "nearest";
+            }
+            else
+            {
+                sFilter = "bilinear";
+            }
+
+            for (gint nMode = 0; nMode < pResources->nmode; nMode++)
+            {
+                if (pCrtcInfo->mode == pResources->modes[nMode].id)
+                {
+                    if (fScale > 1.0)
+                    {
+                        nPrimaryWidth = ceil (pResources->modes[nMode].width * fScale);
+                        nPrimaryHeight = ceil (pResources->modes[nMode].height * fScale);
+                    }
+                    else
+                    {
+                        nPrimaryWidth = pResources->modes[nMode].width;
+                        nPrimaryHeight = pResources->modes[nMode].height;
+                    }
+
+                    nScreenWidth = nPrimaryWidth;
+                    nScreenHeight = nPrimaryHeight;
+
+                    break;
+                }
+            }
+
+            XRRSetCrtcTransform (pDisplay, pOutputInfo->crtc, &cTransform, sFilter, NULL, 0);
+            Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
+
+            if (nStatus != RRSetConfigSuccess)
+            {
+                g_error ("Panic: Failed to set CRTC info");
+            }
+
+            XRRFreeCrtcInfo(pCrtcInfo);
+        }
+
+        XRRFreeOutputInfo (pOutputInfo);
+
+        for (gint nOutput = 0; nOutput < pResources->noutput; nOutput++)
+        {
+            XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, pResources->outputs[nOutput]);
+
+            if (pOutputInfo->connection == RR_Connected && pOutputInfo->crtc)
+            {
+                XRRCrtcInfo *pCrtcInfo = XRRGetCrtcInfo (pDisplay, pResources, pOutputInfo->crtc);
+
+                if (!pCrtcInfo)
+                {
+                    g_error ("Panic: Failed to get CRTC info");
+                    XRRFreeOutputInfo (pOutputInfo);
+                    XRRFreeScreenResources (pResources);
+                    XCloseDisplay (pDisplay);
+
+                    return;
+                }
+
+                if (pResources->outputs[nOutput] != nOutputPrimary)
+                {
+                    gboolean bReposition = FALSE;
+
+                    if (pCrtcInfo->x)
+                    {
+                        pCrtcInfo->x = nPrimaryWidth;
+                        bReposition = TRUE;
+                    }
+
+                    if (pCrtcInfo->y)
+                    {
+                        pCrtcInfo->y = nPrimaryHeight;
+                        bReposition = TRUE;
+                    }
+
+                    if (bReposition)
+                    {
+                        Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
+
+                        if (nStatus != RRSetConfigSuccess)
+                        {
+                            g_error ("Panic: Failed to set CRTC info");
+                        }
+                    }
+                }
+
+                nScreenWidth = MAX (nScreenWidth, pCrtcInfo->x + pCrtcInfo->width);
+                nScreenHeight = MAX (nScreenHeight, pCrtcInfo->y + pCrtcInfo->height);
+                XRRFreeCrtcInfo(pCrtcInfo);
+            }
+
+            XRRFreeOutputInfo (pOutputInfo);
+        }
+
+        g_debug ("Resizing screen to: %ix%i", nScreenWidth, nScreenHeight);
+        XRRSetScreenSize (pDisplay, pWindow, nScreenWidth, nScreenHeight, (gint) ceil ((25.4 * nScreenWidth) / fDpi), (gint) ceil ((25.4 * nScreenHeight) / fDpi));
+        XRRFreeScreenResources (pResources);
+        XUngrabServer (pDisplay);
+        XCloseDisplay (pDisplay);
+        self->pPrivate->fScale = fScale;
+    }
+}
+
 static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
 {
     g_simple_action_set_state (pAction, pValue);
@@ -688,6 +864,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     self->pPrivate->bOnboardActive = FALSE;
     self->pPrivate->bOrcaActive = FALSE;
     self->pPrivate->bMagnifierActive = FALSE;
+    self->pPrivate->fScale = 0;
     self->pPrivate->sMagnifier = NULL;
     self->pPrivate->nMagnifier = 0;
     self->pPrivate->sThemeGtk = NULL;
@@ -910,10 +1087,43 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onMagnifierState), self);
     g_object_unref (G_OBJECT (pSimpleAction));
 
+    if (!self->pPrivate->bGreeter)
+    {
+        GVariant *pScale = g_variant_new_double (1.0);
+        pSimpleAction = g_simple_action_new_stateful ("scale", G_VARIANT_TYPE_DOUBLE, pScale);
+        g_settings_bind_with_mapping (self->pPrivate->pSettings, "scale", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
+        g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onScaleState), self);
+        g_object_unref (G_OBJECT (pSimpleAction));
+    }
+
     // Add sections to the submenu
     self->pPrivate->pSubmenu = g_menu_new();
     GMenu *pSection = g_menu_new();
     GMenuItem *pItem = NULL;
+
+    if (!self->pPrivate->bGreeter)
+    {
+        GIcon *pIconMin = g_themed_icon_new_with_default_fallbacks ("ayatana-indicator-a11y-scale-down");
+        GIcon *pIconMax = g_themed_icon_new_with_default_fallbacks ("ayatana-indicator-a11y-scale-up");
+        GVariant *pIconMinSerialised = g_icon_serialize (pIconMin);
+        GVariant *pIconMaxSerialised = g_icon_serialize (pIconMax);
+        pItem = g_menu_item_new (_("User Interface Scale"), "indicator.scale");
+        g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.slider");
+        g_menu_item_set_attribute_value (pItem, "min-icon", pIconMinSerialised);
+        g_menu_item_set_attribute_value (pItem, "max-icon", pIconMaxSerialised);
+        g_menu_item_set_attribute (pItem, "min-value", "d", 0.5);
+        g_menu_item_set_attribute (pItem, "max-value", "d", 1.5);
+        g_menu_item_set_attribute (pItem, "step", "d", 0.1);
+        g_menu_item_set_attribute (pItem, "digits", "y", 1);
+        g_menu_item_set_attribute (pItem, "marks", "b", TRUE);
+        g_menu_append_item (pSection, pItem);
+        g_object_unref (pIconMin);
+        g_object_unref (pIconMax);
+        g_variant_unref (pIconMinSerialised);
+        g_variant_unref (pIconMaxSerialised);
+        g_object_unref (pItem);
+    }
 
     pItem = g_menu_item_new (_("High Contrast"), "indicator.contrast");
     g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
@@ -953,6 +1163,10 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!self->pPrivate->bGreeter)
     {
+        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "scale");
+        GVariant *pScale = g_settings_get_value (self->pPrivate->pSettings, "scale");
+        g_action_change_state (pAction, pScale);
+
         gint nUid = geteuid ();
         getAccountsService (self, nUid);
     }

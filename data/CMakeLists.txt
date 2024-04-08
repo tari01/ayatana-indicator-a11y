@@ -43,3 +43,8 @@ install (FILES 50-org.ayatana.indicator.a11y.AccountsService.rules DESTINATION "
 
 find_package (GSettings REQUIRED)
 add_schema ("org.ayatana.indicator.a11y.gschema.xml")
+
+# ayatana-indicator-a11y-scale-down.svg
+# ayatana-indicator-a11y-scale-up.svg
+
+install (DIRECTORY "icons/" DESTINATION "${CMAKE_INSTALL_FULL_DATADIR}/icons/hicolor/scalable/status" FILES_MATCHING PATTERN "*.svg")
