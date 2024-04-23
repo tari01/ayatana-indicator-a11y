@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-10 23:50+0200\n"
+"POT-Creation-Date: 2024-04-23 13:37+0200\n"
 "PO-Revision-Date: 2024-04-01 02:24+0000\n"
 "Last-Translator: 复予 <clonewith@qq.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -19,22 +19,40 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 5.5-dev\n"
 
-#: src/service.c:64
+#: src/service.c:77
 msgid "Accessibility"
 msgstr "可访问性"
 
-#: src/service.c:65 src/service.c:67
+#: src/service.c:78 src/service.c:87
 msgid "Accessibility settings"
 msgstr "可访问性设置"
 
-#: src/service.c:645
+#: src/service.c:502
+#, c-format
+msgid "The %s program is required for this action, but it was not found."
+msgstr ""
+
+#: src/service.c:503
+msgid "Warning"
+msgstr ""
+
+#: src/service.c:1111
+msgid "User Interface Scale"
+msgstr ""
+
+#: src/service.c:1128
 msgid "High Contrast"
 msgstr "高对比度"
 
-#: src/service.c:650
+#: src/service.c:1133
 msgid "On-Screen Keyboard"
 msgstr "屏幕键盘"
 
-#: src/service.c:655
+#: src/service.c:1138
 msgid "Screen Reader"
+msgstr "屏幕阅读器"
+
+#: src/service.c:1143
+#, fuzzy
+msgid "Screen Magnifier"
 msgstr "屏幕阅读器"

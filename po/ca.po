@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-10-10 23:50+0200\n"
+"POT-Creation-Date: 2024-04-23 13:37+0200\n"
 "PO-Revision-Date: 2023-06-23 20:34+0000\n"
 "Last-Translator: Joan CiberSheep <cibersheep@gmail.com>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/ayatana-"
@@ -19,22 +19,40 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Weblate 4.18.1\n"
 
-#: src/service.c:64
+#: src/service.c:77
 msgid "Accessibility"
 msgstr "Accessibilitat"
 
-#: src/service.c:65 src/service.c:67
+#: src/service.c:78 src/service.c:87
 msgid "Accessibility settings"
 msgstr "Configuració d'accessibilitat"
 
-#: src/service.c:645
+#: src/service.c:502
+#, c-format
+msgid "The %s program is required for this action, but it was not found."
+msgstr ""
+
+#: src/service.c:503
+msgid "Warning"
+msgstr ""
+
+#: src/service.c:1111
+msgid "User Interface Scale"
+msgstr ""
+
+#: src/service.c:1128
 msgid "High Contrast"
 msgstr "Alt contrast"
 
-#: src/service.c:650
+#: src/service.c:1133
 msgid "On-Screen Keyboard"
 msgstr "Teclat en pantalla"
 
-#: src/service.c:655
+#: src/service.c:1138
 msgid "Screen Reader"
+msgstr "Lector de pantalla"
+
+#: src/service.c:1143
+#, fuzzy
+msgid "Screen Magnifier"
 msgstr "Lector de pantalla"
