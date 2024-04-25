@@ -1,3 +1,9 @@
+Overview of changes in ayatana-indicator-a11y 24.4.1
+
+  - Translation fix. (UI was always in English).
+  - Translation updates.
+  - Update translation files.
+
 Overview of changes in ayatana-indicator-a11y 24.4.0
 
   - data/org.ayatana.indicator.a11y.AccountsService.policy: Fix policy

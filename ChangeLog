@@ -1,6 +1,36 @@
+2024-04-25 Mike Gabriel
+
+        * release 24.4.1 (HEAD -> main, tag: 24.4.1)
+        * Merge branch 'tari01-pr/fix-translation' (60e76404)
+
+2024-04-23 Oğuz Ersen
+
+        * Translated using Weblate (Turkish) (5ea17cd9)
+
+2024-04-24 gallegonovato
+
+        * Translated using Weblate (Spanish) (eb0b40f9)
+
+2024-04-23 Oğuz Ersen
+
+        * Translated using Weblate (Turkish) (010ca36a)
+
+2024-04-24 gallegonovato
+
+        * Translated using Weblate (Spanish) (0b203498)
+
+2024-04-24 Robert Tari
+
+        * Translation fix (a00943cb)
+
+2024-04-23 Mike Gabriel
+
+        * Translated using Weblate (German) (0c942048)
+        * Update translation files. (ec6fb273)
+
 2024-04-08 Mike Gabriel
 
-        * release 24.4.0 (HEAD -> main, tag: 24.4.0)
+        * release 24.4.0 (a6fbf2a5) (tag: 24.4.0)
         * Merge branch 'tari01-pr/add-screen-scaling' (3c1338b9)
 
 2024-04-04 Robert Tari
