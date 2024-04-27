@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-23 13:37+0200\n"
-"PO-Revision-Date: 2023-05-10 05:51+0000\n"
+"PO-Revision-Date: 2024-04-28 09:07+0000\n"
 "Last-Translator: Wellington Terumi Uemura <wellingtonuemura@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "ayatana-indicators/a11y-applet/pt_BR/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 4.18-dev\n"
+"X-Generator: Weblate 5.5.1\n"
 
 #: src/service.c:77
 msgid "Accessibility"
@@ -30,15 +30,15 @@ msgstr "Configurações de acessibilidade"
 #: src/service.c:502
 #, c-format
 msgid "The %s program is required for this action, but it was not found."
-msgstr ""
+msgstr "O programa %s é necessário para esta ação, mas ele não foi encontrado."
 
 #: src/service.c:503
 msgid "Warning"
-msgstr ""
+msgstr "Aviso"
 
 #: src/service.c:1111
 msgid "User Interface Scale"
-msgstr ""
+msgstr "Escala da interface do usuário"
 
 #: src/service.c:1128
 msgid "High Contrast"
@@ -53,6 +53,5 @@ msgid "Screen Reader"
 msgstr "Leitor de tela"
 
 #: src/service.c:1143
-#, fuzzy
 msgid "Screen Magnifier"
-msgstr "Leitor de tela"
+msgstr "Ampliador de tela"
