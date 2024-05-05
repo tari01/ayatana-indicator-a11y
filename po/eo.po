@@ -8,14 +8,16 @@ msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-23 13:37+0200\n"
-"PO-Revision-Date: 2023-04-10 23:13+0200\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2024-05-06 08:07+0000\n"
+"Last-Translator: phlostically <phlostically@mailinator.com>\n"
+"Language-Team: Esperanto <https://hosted.weblate.org/projects/"
+"ayatana-indicators/a11y-applet/eo/>\n"
 "Language: eo\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ASCII\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.5.3\n"
 
 #: src/service.c:77
 msgid "Accessibility"
@@ -32,7 +34,7 @@ msgstr ""
 
 #: src/service.c:503
 msgid "Warning"
-msgstr ""
+msgstr "Averto"
 
 #: src/service.c:1111
 msgid "User Interface Scale"
@@ -44,11 +46,11 @@ msgstr ""
 
 #: src/service.c:1133
 msgid "On-Screen Keyboard"
-msgstr ""
+msgstr "Klavaro sur ekrano"
 
 #: src/service.c:1138
 msgid "Screen Reader"
-msgstr ""
+msgstr "Ekranlegilo"
 
 #: src/service.c:1143
 msgid "Screen Magnifier"
