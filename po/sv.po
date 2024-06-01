@@ -8,16 +8,16 @@ msgstr ""
 "Project-Id-Version: ayatana-indicator-a 11y\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-23 13:37+0200\n"
-"PO-Revision-Date: 2023-07-02 23:50+0000\n"
-"Last-Translator: Luna Jernberg <droidbittin@gmail.com>\n"
-"Language-Team: Swedish <https://hosted.weblate.org/projects/ayatana-"
-"indicators/a11y-applet/sv/>\n"
+"PO-Revision-Date: 2024-06-01 10:21+0000\n"
+"Last-Translator: bittin1ddc447d824349b2 <bittin@reimu.nl>\n"
+"Language-Team: Swedish <https://hosted.weblate.org/projects/"
+"ayatana-indicators/a11y-applet/sv/>\n"
 "Language: sv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0-dev\n"
+"X-Generator: Weblate 5.6-dev\n"
 
 #: src/service.c:77
 msgid "Accessibility"
@@ -30,15 +30,15 @@ msgstr "Tillgänglighets inställningar"
 #: src/service.c:502
 #, c-format
 msgid "The %s program is required for this action, but it was not found."
-msgstr ""
+msgstr "Programmet %s krävs för denna åtgärd, men det hittades inte."
 
 #: src/service.c:503
 msgid "Warning"
-msgstr ""
+msgstr "Varning"
 
 #: src/service.c:1111
 msgid "User Interface Scale"
-msgstr ""
+msgstr "Användargränssnittsskala"
 
 #: src/service.c:1128
 msgid "High Contrast"
@@ -53,6 +53,5 @@ msgid "Screen Reader"
 msgstr "Skärmläsare"
 
 #: src/service.c:1143
-#, fuzzy
 msgid "Screen Magnifier"
-msgstr "Skärmläsare"
+msgstr "Skärmförstoringsglas"
