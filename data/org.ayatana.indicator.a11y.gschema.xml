@@ -10,6 +10,26 @@
       <summary>Previous icon theme</summary>
       <description>The icon theme used before high contrast mode was enabled.</description>
     </key>
+    <key name="color-shading-type" type="s">
+      <default>''</default>
+      <summary>Previous color shading type</summary>
+      <description>The color shading type used before high contrast mode was enabled.</description>
+    </key>
+    <key name="picture-filename" type="s">
+      <default>''</default>
+      <summary>Previous picture filename</summary>
+      <description>The picture filename used before high contrast mode was enabled.</description>
+    </key>
+    <key name="picture-options" type="s">
+      <default>''</default>
+      <summary>Previous picture options</summary>
+      <description>The picture options used before high contrast mode was enabled.</description>
+    </key>
+    <key name="primary-color" type="s">
+      <default>''</default>
+      <summary>Previous primary color</summary>
+      <description>The primary color used before high contrast mode was enabled.</description>
+    </key>
     <key name="magnifier" type="s">
       <default>'magnus'</default>
       <summary>Screen magnifier</summary>
