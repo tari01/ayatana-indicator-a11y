@@ -64,6 +64,7 @@ struct _IndicatorA11yServicePrivate
     gchar *sMagnifier;
     GPid nMagnifier;
     gdouble fScale;
+    GSettings *pBackgroundSettings;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -325,6 +326,11 @@ static void onDispose (GObject *pObject)
     if (self->pPrivate->pHighContrastSettings)
     {
         g_clear_object (&self->pPrivate->pHighContrastSettings);
+    }
+
+    if (self->pPrivate->pBackgroundSettings)
+    {
+        g_clear_object (&self->pPrivate->pBackgroundSettings);
     }
 
     if (self->pPrivate->sThemeGtk)
@@ -756,6 +762,8 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
 
     if (bActive != self->pPrivate->bHighContrast)
     {
+        self->pPrivate->bHighContrast = bActive;
+
         if (!self->pPrivate->bGreeter)
         {
             self->pPrivate->bIgnoreSettings = TRUE;
@@ -770,11 +778,25 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", "ContrastHigh");
                 g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
                 g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
+
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "color-shading-type", "solid");
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-filename", "");
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-options", "wallpaper");
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
             }
             else
             {
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sThemeGtk);
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", self->pPrivate->sThemeIcon);
+
+                const gchar *lProperties[] = {"color-shading-type", "picture-filename", "picture-options", "primary-color"};
+
+                for (guint nProperty = 0; nProperty < 4; nProperty++)
+                {
+                    gchar *sValue = g_settings_get_string (self->pPrivate->pSettings, lProperties[nProperty]);
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, lProperties[nProperty], sValue);
+                    g_free (sValue);
+                }
             }
 
             self->pPrivate->bIgnoreSettings = FALSE;
@@ -794,13 +816,23 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
             }
         }
 
-        self->pPrivate->bHighContrast = bActive;
-
         if (!self->pPrivate->bReadingAccountsService)
         {
             GVariant *pValue = g_variant_new ("b", bActive);
             setAccountsService (self, "contrast", pValue);
         }
+    }
+}
+
+static void onBackgroundSettings (GSettings *pSettings, const gchar *sKey, gpointer pUserData)
+{
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+
+    if (!self->pPrivate->bHighContrast)
+    {
+        gchar *sValue = g_settings_get_string (self->pPrivate->pBackgroundSettings, sKey);
+        g_settings_set_string (self->pPrivate->pSettings, sKey, sValue);
+        g_free (sValue);
     }
 }
 
@@ -966,6 +998,24 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                     g_error ("Panic: No org.mate.interface schema found");
                 }
 
+                pSchema = g_settings_schema_source_lookup (pSource, "org.mate.background", FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pBackgroundSettings = g_settings_new ("org.mate.background");
+                    const gchar *lProperties[] = {"color-shading-type", "picture-filename", "picture-options", "primary-color"};
+
+                    for (guint nProperty = 0; nProperty < 4; nProperty++)
+                    {
+                        onBackgroundSettings (self->pPrivate->pBackgroundSettings, lProperties[nProperty], self);
+                    }
+                }
+                else
+                {
+                    g_error ("Panic: No org.mate.background schema found");
+                }
+
                 pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
 
                 if (pSchema)
@@ -1057,6 +1107,11 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
         // Workaround for applications that do not react to "high-contrast" setting
         g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::gtk-theme", G_CALLBACK (onContrastSettings), self);
         g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::icon-theme", G_CALLBACK (onContrastSettings), self);
+
+        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::color-shading-type", G_CALLBACK (onBackgroundSettings), self);
+        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-filename", G_CALLBACK (onBackgroundSettings), self);
+        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-options", G_CALLBACK (onBackgroundSettings), self);
+        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::primary-color", G_CALLBACK (onBackgroundSettings), self);
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
