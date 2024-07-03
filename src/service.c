@@ -65,6 +65,7 @@ struct _IndicatorA11yServicePrivate
     GPid nMagnifier;
     gdouble fScale;
     GSettings *pBackgroundSettings;
+    gchar *sHighContrast;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -341,6 +342,11 @@ static void onDispose (GObject *pObject)
     if (self->pPrivate->sThemeIcon)
     {
         g_free (self->pPrivate->sThemeIcon);
+    }
+
+    if (self->pPrivate->sHighContrast)
+    {
+        g_free (self->pPrivate->sHighContrast);
     }
 
     if (self->pPrivate->sMagnifier)
@@ -774,7 +780,7 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
                 g_free (self->pPrivate->sThemeIcon);
                 self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
                 self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
-                g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", "ContrastHigh");
+                g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
                 g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", "ContrastHigh");
                 g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
                 g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
@@ -782,7 +788,17 @@ static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer 
                 g_settings_set_string (self->pPrivate->pBackgroundSettings, "color-shading-type", "solid");
                 g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-filename", "");
                 g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-options", "wallpaper");
-                g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+
+                gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
+
+                if (bInverse)
+                {
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+                }
+                else
+                {
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+                }
             }
             else
             {
@@ -836,6 +852,36 @@ static void onBackgroundSettings (GSettings *pSettings, const gchar *sKey, gpoin
     }
 }
 
+static void onContrastThemeSettings (GSettings *pSettings, const gchar *sKey, gpointer pUserData)
+{
+    IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+
+    if (self->pPrivate->sHighContrast)
+    {
+        g_free (self->pPrivate->sHighContrast);
+    }
+
+    self->pPrivate->sHighContrast = g_settings_get_string (self->pPrivate->pSettings, "high-contrast");
+
+    if (self->pPrivate->bHighContrast)
+    {
+        self->pPrivate->bIgnoreSettings = TRUE;
+        g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
+        gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
+
+        if (bInverse)
+        {
+            g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+        }
+        else
+        {
+            g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+        }
+
+        self->pPrivate->bIgnoreSettings = FALSE;
+    }
+}
+
 static void onContrastSettings (GSettings *pSettings, const gchar *sKey, gpointer pUserData)
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
@@ -861,7 +907,7 @@ static void onContrastSettings (GSettings *pSettings, const gchar *sKey, gpointe
         g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
     }
 
-    bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
+    bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh") || g_str_equal (self->pPrivate->sThemeGtk, "HighContrastInverse");
     bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
     gboolean bHighContrast = (bThemeGtk && bThemeIcon);
 
@@ -905,6 +951,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     self->pPrivate->lUsers = NULL;
     self->pPrivate->sUser = NULL;
     self->pPrivate->bReadingAccountsService = FALSE;
+    self->pPrivate->sHighContrast = NULL;
     GError *pError = NULL;
     self->pPrivate->pAccountsServiceConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &pError);
 
@@ -988,7 +1035,8 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                         self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
                     }
 
-                    gboolean bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh");
+                    self->pPrivate->sHighContrast = g_settings_get_string (self->pPrivate->pSettings, "high-contrast");
+                    gboolean bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, self->pPrivate->sHighContrast);
                     gboolean bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
                     self->pPrivate->bHighContrast = (bThemeGtk && bThemeIcon);
                     self->pPrivate->sMagnifier = g_settings_get_string (self->pPrivate->pSettings, "magnifier");
@@ -1112,6 +1160,8 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
         g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-filename", G_CALLBACK (onBackgroundSettings), self);
         g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-options", G_CALLBACK (onBackgroundSettings), self);
         g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::primary-color", G_CALLBACK (onBackgroundSettings), self);
+
+        g_signal_connect (self->pPrivate->pSettings, "changed::high-contrast", G_CALLBACK (onContrastThemeSettings), self);
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));

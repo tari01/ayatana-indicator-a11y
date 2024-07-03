@@ -41,5 +41,14 @@
       <summary>User interface scale</summary>
       <description>The scale of the user interface.</description>
     </key>
+    <key type="s" name="high-contrast">
+      <choices>
+        <choice value='ContrastHigh'/>
+        <choice value='HighContrastInverse'/>
+      </choices>
+      <default>'ContrastHigh'</default>
+      <summary>High contrast theme</summary>
+      <description>The High contrast theme to use.</description>
+    </key>
   </schema>
 </schemalist>
