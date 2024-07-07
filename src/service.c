@@ -553,12 +553,10 @@ static void onMagnifierState (GSimpleAction *pAction, GVariant* pValue, gpointer
     }
 }
 
-static void onScaleState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
+static void onScaleState (gpointer pUserData)
 {
-    g_simple_action_set_state (pAction, pValue);
-
-    gdouble fScale = g_variant_get_double (pValue);
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
+    gdouble fScale = g_settings_get_double (self->pPrivate->pSettings, "scale");
 
     if (fScale != self->pPrivate->fScale)
     {
@@ -1198,8 +1196,8 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
         pSimpleAction = g_simple_action_new_stateful ("scale", G_VARIANT_TYPE_DOUBLE, pScale);
         g_settings_bind_with_mapping (self->pPrivate->pSettings, "scale", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
         g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
-        g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onScaleState), self);
         g_object_unref (G_OBJECT (pSimpleAction));
+        g_signal_connect_swapped (self->pPrivate->pSettings, "changed::scale", G_CALLBACK (onScaleState), self);
     }
 
     // Add sections to the submenu
