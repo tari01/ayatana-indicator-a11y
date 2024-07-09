@@ -66,6 +66,8 @@ struct _IndicatorA11yServicePrivate
     gdouble fScale;
     GSettings *pBackgroundSettings;
     gchar *sHighContrast;
+    GSettings *pKeybindingSettings;
+    GSettings *pApplicationsSettings;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -382,6 +384,8 @@ static void onDispose (GObject *pObject)
 
     unexport (self);
 
+    g_clear_object (&self->pPrivate->pApplicationsSettings);
+    g_clear_object (&self->pPrivate->pKeybindingSettings);
     g_clear_object (&self->pPrivate->pSettings);
     g_clear_object (&self->pPrivate->pHeaderAction);
     g_clear_object (&self->pPrivate->pActionGroup);
@@ -931,6 +935,36 @@ static GVariant* valueToVariant (const GValue *pValue, const GVariantType *pType
     return pVariant;
 }
 
+static void setAccelerator (GMenuItem *pItem, gchar *sKey, IndicatorA11yService *self)
+{
+    if (!self->pPrivate->bGreeter)
+    {
+        gchar *sAccelerator = NULL;
+        gboolean bMate = ayatana_common_utils_is_mate ();
+
+        if (bMate)
+        {
+            sAccelerator = g_settings_get_string (self->pPrivate->pKeybindingSettings, sKey);
+
+            if (sAccelerator)
+            {
+                g_menu_item_set_attribute (pItem, "accel", "s", sAccelerator);
+                g_free (sAccelerator);
+            }
+        }
+        else
+        {
+            gchar **lAccelerators = g_settings_get_strv (self->pPrivate->pKeybindingSettings, sKey);
+
+            if (lAccelerators)
+            {
+                g_menu_item_set_attribute (pItem, "accel", "s", lAccelerators[0]);
+                g_strfreev (lAccelerators);
+            }
+        }
+    }
+}
+
 static void indicator_a11y_service_init (IndicatorA11yService *self)
 {
     self->pPrivate = indicator_a11y_service_get_instance_private (self);
@@ -1010,6 +1044,42 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 {
                     g_error ("Panic: No org.gnome.desktop.a11y.interface schema found");
                 }*/
+
+                gboolean bMate = ayatana_common_utils_is_mate ();
+                gchar *sInterface = NULL;
+
+                if (bMate)
+                {
+                    sInterface = "org.mate.SettingsDaemon.plugins.media-keys";
+                }
+                else
+                {
+                    sInterface = "org.gnome.settings-daemon.plugins.media-keys";
+                }
+
+                pSchema = g_settings_schema_source_lookup (pSource, sInterface, FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pKeybindingSettings = g_settings_new (sInterface);
+                }
+                else
+                {
+                    g_error ("Panic: No %s schema found", sInterface);
+                }
+
+                pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.applications", FALSE);
+
+                if (pSchema)
+                {
+                    g_settings_schema_unref (pSchema);
+                    self->pPrivate->pApplicationsSettings = g_settings_new ("org.gnome.desktop.a11y.applications");
+                }
+                else
+                {
+                    g_error ("Panic: No org.gnome.desktop.a11y.applications schema found");
+                }
 
                 pSchema = g_settings_schema_source_lookup (pSource, "org.mate.interface", FALSE);
 
@@ -1168,6 +1238,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     GVariant *pOnboard = g_variant_new_boolean (self->pPrivate->bOnboardActive);
     pSimpleAction = g_simple_action_new_stateful ("onboard", G_VARIANT_TYPE_BOOLEAN, pOnboard);
+
+    if (!self->pPrivate->bGreeter)
+    {
+        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-keyboard-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+    }
+
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
     g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onOnboardState), self);
     g_object_unref (G_OBJECT (pSimpleAction));
@@ -1178,6 +1254,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     if (!self->pPrivate->bGreeter)
     {
         g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
@@ -1186,6 +1263,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     GVariant *pMagnifier = g_variant_new_boolean (self->pPrivate->bMagnifierActive);
     pSimpleAction = g_simple_action_new_stateful ("magnifier", G_VARIANT_TYPE_BOOLEAN, pMagnifier);
+
+    if (!self->pPrivate->bGreeter)
+    {
+        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-magnifier-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+    }
+
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
     g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onMagnifierState), self);
     g_object_unref (G_OBJECT (pSimpleAction));
@@ -1235,16 +1318,19 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     pItem = g_menu_item_new (_("On-Screen Keyboard"), "indicator.onboard");
     g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
+    setAccelerator (pItem, "on-screen-keyboard", self);
     g_menu_append_item (pSection, pItem);
     g_object_unref (pItem);
 
     pItem = g_menu_item_new (_("Screen Reader"), "indicator.orca");
     g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
+    setAccelerator (pItem, "screenreader", self);
     g_menu_append_item (pSection, pItem);
     g_object_unref (pItem);
 
     pItem = g_menu_item_new (_("Screen Magnifier"), "indicator.magnifier");
     g_menu_item_set_attribute (pItem, "x-ayatana-type", "s", "org.ayatana.indicator.switch");
+    setAccelerator (pItem, "magnifier", self);
     g_menu_append_item (pSection, pItem);
     g_object_unref (pItem);
 
