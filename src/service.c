@@ -68,6 +68,7 @@ struct _IndicatorA11yServicePrivate
     gchar *sHighContrast;
     GSettings *pKeybindingSettings;
     GSettings *pApplicationsSettings;
+    gboolean bVirtualX;
 };
 
 typedef IndicatorA11yServicePrivate priv_t;
@@ -984,7 +985,72 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     self->pPrivate->sUser = NULL;
     self->pPrivate->bReadingAccountsService = FALSE;
     self->pPrivate->sHighContrast = NULL;
+    self->pPrivate->bVirtualX = FALSE;
     GError *pError = NULL;
+
+    // Check if we are in a virtual environment
+    Display *pDisplay = XOpenDisplay (NULL);
+
+    if (!pDisplay)
+    {
+        g_error ("Panic: Failed to open X display");
+
+        return;
+    }
+
+    guint nScreen = DefaultScreen (pDisplay);
+    Window pWindow = RootWindow (pDisplay, nScreen);
+    XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
+
+    if (!pResources)
+    {
+        g_error ("Panic: Failed to get screen resources");
+        XCloseDisplay (pDisplay);
+
+        return;
+    }
+
+    RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
+    XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
+    GRegex *pRegex = NULL;
+
+    #if GLIB_CHECK_VERSION(2, 73, 0)
+        pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, G_REGEX_MATCH_DEFAULT, &pError);
+    #else
+        pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, (GRegexMatchFlags) 0, &pError);
+    #endif
+
+    if (!pError)
+    {
+        #if GLIB_CHECK_VERSION(2, 73, 0)
+            gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, G_REGEX_MATCH_DEFAULT, NULL);
+        #else
+            gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, (GRegexMatchFlags) 0, NULL);
+        #endif
+
+        if (bMatch)
+        {
+            self->pPrivate->bVirtualX = TRUE;
+        }
+
+        g_regex_unref (pRegex);
+    }
+    else
+    {
+        g_error ("PANIC: Failed to compile regex: %s", pError->message);
+        g_error_free (pError);
+        XRRFreeOutputInfo (pOutputInfo);
+        XRRFreeScreenResources (pResources);
+        XCloseDisplay (pDisplay);
+
+        return;
+    }
+
+    XRRFreeOutputInfo (pOutputInfo);
+    XRRFreeScreenResources (pResources);
+    XCloseDisplay (pDisplay);
+    //~ Check if we are in a virtual environment
+
     self->pPrivate->pAccountsServiceConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &pError);
 
     if (pError)
@@ -1273,7 +1339,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     g_signal_connect (pSimpleAction, "change-state", G_CALLBACK (onMagnifierState), self);
     g_object_unref (G_OBJECT (pSimpleAction));
 
-    if (!self->pPrivate->bGreeter)
+    if (!self->pPrivate->bGreeter && !self->pPrivate->bVirtualX)
     {
         GVariant *pScale = g_variant_new_double (1.0);
         pSimpleAction = g_simple_action_new_stateful ("scale", G_VARIANT_TYPE_DOUBLE, pScale);
@@ -1288,7 +1354,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     GMenu *pSection = g_menu_new();
     GMenuItem *pItem = NULL;
 
-    if (!self->pPrivate->bGreeter)
+    if (!self->pPrivate->bGreeter && !self->pPrivate->bVirtualX)
     {
         GIcon *pIconMin = g_themed_icon_new_with_default_fallbacks ("ayatana-indicator-a11y-scale-down");
         GIcon *pIconMax = g_themed_icon_new_with_default_fallbacks ("ayatana-indicator-a11y-scale-up");
@@ -1350,7 +1416,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     self->pPrivate->nOwnId = g_bus_own_name (G_BUS_TYPE_SESSION, BUS_NAME, G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT, onBusAcquired, NULL, onNameLost, self, NULL);
 
-    if (!self->pPrivate->bGreeter)
+    if (!self->pPrivate->bGreeter && !self->pPrivate->bVirtualX)
     {
         GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "scale");
         GVariant *pScale = g_settings_get_value (self->pPrivate->pSettings, "scale");
