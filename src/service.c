@@ -108,11 +108,10 @@ static GVariant* createHeaderState (IndicatorA11yService *self)
 static void toggleScreensaverOnboard (gboolean bActive)
 {
     GSettingsSchemaSource *pSource = g_settings_schema_source_get_default ();
-    GSettingsSchema *pSchema = NULL;
 
     if (pSource)
     {
-        pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
+        GSettingsSchema *pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
 
         if (pSchema)
         {
@@ -123,7 +122,7 @@ static void toggleScreensaverOnboard (gboolean bActive)
         }
         else
         {
-            g_error ("Panic: No org.mate.screensaver schema found");
+            g_warning ("Panic: No org.mate.screensaver schema found");
         }
     }
 }
@@ -275,7 +274,7 @@ static void onBusAcquired (GDBusConnection *pConnection, const gchar *sName, gpo
     // Export the actions
     if (!self->pPrivate->nActionsId)
     {
-        g_warning ("cannot export action group: %s", pError->message);
+        g_warning ("Cannot export action group: %s", pError->message);
         g_clear_error(&pError);
     }
 
@@ -285,7 +284,7 @@ static void onBusAcquired (GDBusConnection *pConnection, const gchar *sName, gpo
 
     if (!self->pPrivate->nExportId)
     {
-        g_warning ("cannot export %s menu: %s", sPath, pError->message);
+        g_warning ("Cannot export %s menu: %s", sPath, pError->message);
         g_clear_error (&pError);
     }
 
@@ -327,15 +326,8 @@ static void onDispose (GObject *pObject)
         g_dbus_connection_signal_unsubscribe (self->pPrivate->pConnection, self->pPrivate->nOnboardSubscription);
     }
 
-    if (self->pPrivate->pHighContrastSettings)
-    {
-        g_clear_object (&self->pPrivate->pHighContrastSettings);
-    }
-
-    if (self->pPrivate->pBackgroundSettings)
-    {
-        g_clear_object (&self->pPrivate->pBackgroundSettings);
-    }
+    g_clear_object (&self->pPrivate->pHighContrastSettings);
+    g_clear_object (&self->pPrivate->pBackgroundSettings);
 
     if (self->pPrivate->sThemeGtk)
     {
@@ -372,10 +364,7 @@ static void onDispose (GObject *pObject)
         g_slist_free (self->pPrivate->lUsers);
     }
 
-    if (self->pPrivate->pOrcaSettings)
-    {
-        g_clear_object (&self->pPrivate->pOrcaSettings);
-    }
+    g_clear_object (&self->pPrivate->pOrcaSettings);
 
     if (self->pPrivate->nOwnId)
     {
@@ -398,30 +387,33 @@ static void onDispose (GObject *pObject)
 
 static void setAccountsService (IndicatorA11yService *self, gchar *sProperty, GVariant *pValue)
 {
-    gint nUid = 0;
-
-    if (!self->pPrivate->bGreeter)
+    if (self->pPrivate->pAccountsServiceConnection)
     {
-        nUid = geteuid ();
-    }
-    else if (self->pPrivate->sUser)
-    {
-        const struct passwd *pPasswd = getpwnam (self->pPrivate->sUser);
+        gint nUid = 0;
 
-        if (pPasswd)
+        if (!self->pPrivate->bGreeter)
         {
-            nUid = pPasswd->pw_uid;
+            nUid = geteuid ();
         }
-    }
+        else if (self->pPrivate->sUser)
+        {
+            const struct passwd *pPasswd = getpwnam (self->pPrivate->sUser);
 
-    if (nUid)
-    {
-        gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
-        GDBusProxy *pProxy = g_dbus_proxy_new_sync (self->pPrivate->pAccountsServiceConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
-        g_free (sPath);
-        GVariant *pParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", sProperty, pValue);
-        GVariant *pRet = g_dbus_proxy_call_sync (pProxy, "Set", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-        g_variant_unref (pRet);
+            if (pPasswd)
+            {
+                nUid = pPasswd->pw_uid;
+            }
+        }
+
+        if (nUid)
+        {
+            gchar *sPath = g_strdup_printf ("/org/freedesktop/Accounts/User%i", nUid);
+            GDBusProxy *pProxy = g_dbus_proxy_new_sync (self->pPrivate->pAccountsServiceConnection, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.Accounts", sPath, "org.freedesktop.DBus.Properties", NULL, NULL);
+            g_free (sPath);
+            GVariant *pParams = g_variant_new ("(ssv)", "org.ayatana.indicator.a11y.AccountsService", sProperty, pValue);
+            GVariant *pRet = g_dbus_proxy_call_sync (pProxy, "Set", pParams, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+            g_variant_unref (pRet);
+        }
     }
 }
 
@@ -460,7 +452,7 @@ static void onOnboardState (GSimpleAction *pAction, GVariant* pValue, gpointer p
 
         if (pError)
         {
-            g_error ("Panic: Failed to toggle Onboard: %s", pError->message);
+            g_warning ("Panic: Failed to toggle Onboard: %s", pError->message);
             g_error_free (pError);
 
             return;
@@ -499,61 +491,64 @@ static void onMagnifierClosed (GDBusConnection *pConnection, const gchar *sSende
 
 static void onMagnifierState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
 {
-    g_simple_action_set_state (pAction, pValue);
-
-    gboolean bActive = g_variant_get_boolean (pValue);
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    if (bActive != self->pPrivate->bMagnifierActive)
+    if (self->pPrivate->sMagnifier)
     {
-        GError *pError = NULL;
+        g_simple_action_set_state (pAction, pValue);
+        gboolean bActive = g_variant_get_boolean (pValue);
 
-        if (!self->pPrivate->bGreeter)
+        if (bActive != self->pPrivate->bMagnifierActive)
         {
-            if (bActive)
+            GError *pError = NULL;
+
+            if (!self->pPrivate->bGreeter)
             {
-                gboolean bFound = ayatana_common_utils_have_program (self->pPrivate->sMagnifier);
-
-                if (!bFound)
+                if (bActive)
                 {
-                    gchar *sMessage = g_strdup_printf (_("The %s program is required for this action, but it was not found."), self->pPrivate->sMagnifier);
-                    ayatana_common_utils_zenity_warning ("dialog-warning", _("Warning"), sMessage);
-                    g_free (sMessage);
+                    gboolean bFound = ayatana_common_utils_have_program (self->pPrivate->sMagnifier);
 
-                    return;
+                    if (!bFound)
+                    {
+                        gchar *sMessage = g_strdup_printf (_("The %s program is required for this action, but it was not found."), self->pPrivate->sMagnifier);
+                        ayatana_common_utils_zenity_warning ("dialog-warning", _("Warning"), sMessage);
+                        g_free (sMessage);
+
+                        return;
+                    }
+                    else
+                    {
+                        gchar *lParams[] = {self->pPrivate->sMagnifier, NULL};
+                        g_spawn_async (NULL, lParams, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &self->pPrivate->nMagnifier, &pError);
+                        g_child_watch_add (self->pPrivate->nMagnifier, onMagnifierExit, self);
+                    }
                 }
-                else
+                else if (self->pPrivate->nMagnifier)
                 {
-                    gchar *lParams[] = {self->pPrivate->sMagnifier, NULL};
-                    g_spawn_async (NULL, lParams, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &self->pPrivate->nMagnifier, &pError);
-                    g_child_watch_add (self->pPrivate->nMagnifier, onMagnifierExit, self);
+                    kill (self->pPrivate->nMagnifier, SIGTERM);
                 }
             }
-            else if (self->pPrivate->nMagnifier)
+            else
             {
-                kill (self->pPrivate->nMagnifier, SIGTERM);
+                GVariant *pParam = g_variant_new ("(b)", bActive);
+                g_dbus_connection_call_sync (self->pPrivate->pConnection, GREETER_BUS_NAME, GREETER_BUS_PATH, GREETER_BUS_NAME, "ToggleMagnifier", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
             }
-        }
-        else
-        {
-            GVariant *pParam = g_variant_new ("(b)", bActive);
-            g_dbus_connection_call_sync (self->pPrivate->pConnection, GREETER_BUS_NAME, GREETER_BUS_PATH, GREETER_BUS_NAME, "ToggleMagnifier", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
-        }
 
-        if (pError)
-        {
-            g_error ("Panic: Failed to toggle magnifier: %s", pError->message);
-            g_error_free (pError);
+            if (pError)
+            {
+                g_warning ("Panic: Failed to toggle magnifier: %s", pError->message);
+                g_error_free (pError);
 
-            return;
-        }
+                return;
+            }
 
-        self->pPrivate->bMagnifierActive = bActive;
+            self->pPrivate->bMagnifierActive = bActive;
 
-        if (!self->pPrivate->bReadingAccountsService)
-        {
-            GVariant *pValue = g_variant_new ("b", bActive);
-            setAccountsService (self, "magnifier", pValue);
+            if (!self->pPrivate->bReadingAccountsService)
+            {
+                GVariant *pValue = g_variant_new ("b", bActive);
+                setAccountsService (self, "magnifier", pValue);
+            }
         }
     }
 }
@@ -561,114 +556,48 @@ static void onMagnifierState (GSimpleAction *pAction, GVariant* pValue, gpointer
 static void onScaleState (gpointer pUserData)
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
-    gdouble fScale = g_settings_get_double (self->pPrivate->pSettings, "scale");
 
-    if (fScale != self->pPrivate->fScale)
+    if (self->pPrivate->pSettings)
     {
-        Display *pDisplay = XOpenDisplay (NULL);
+        gdouble fScale = g_settings_get_double (self->pPrivate->pSettings, "scale");
 
-        if (!pDisplay)
+        if (fScale != self->pPrivate->fScale)
         {
-            g_error ("Panic: Failed to open X display");
+            Display *pDisplay = XOpenDisplay (NULL);
 
-            return;
-        }
-
-        XGrabServer (pDisplay);
-        guint nScreen = DefaultScreen (pDisplay);
-        Window pWindow = RootWindow (pDisplay, nScreen);
-        XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
-
-        if (!pResources)
-        {
-            g_error ("Panic: Failed to get screen resources");
-            XCloseDisplay (pDisplay);
-
-            return;
-        }
-
-        guint nScreenWidth = 0;
-        guint nScreenHeight = 0;
-
-        // Get the Dpi
-        gint nDisplayHeight = DisplayHeight (pDisplay, nScreen);
-        gint nDisplayHeightMetric = DisplayHeightMM (pDisplay, nScreen);
-        gdouble fDpi = (25.4 * nDisplayHeight) / nDisplayHeightMetric;
-
-        // Scale the primary display
-        guint nPrimaryWidth = 0;
-        guint nPrimaryHeight = 0;
-        RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
-        XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
-
-        if (pOutputInfo->connection == RR_Connected && pOutputInfo->crtc)
-        {
-            XRRCrtcInfo *pCrtcInfo = XRRGetCrtcInfo (pDisplay, pResources, pOutputInfo->crtc);
-
-            if (!pCrtcInfo)
+            if (!pDisplay)
             {
-                g_error ("Panic: Failed to get CRTC info");
-                XRRFreeOutputInfo (pOutputInfo);
-                XRRFreeScreenResources (pResources);
+                g_warning ("Panic: Failed to open X display while setting display scale");
+
+                return;
+            }
+
+            XGrabServer (pDisplay);
+            guint nScreen = DefaultScreen (pDisplay);
+            Window pWindow = RootWindow (pDisplay, nScreen);
+            XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
+
+            if (!pResources)
+            {
+                g_warning ("Panic: Failed to get screen resources while setting display scale");
                 XCloseDisplay (pDisplay);
 
                 return;
             }
 
-            XTransform cTransform;
-            memset (&cTransform, 0, sizeof (cTransform));
-            cTransform.matrix[0][0] = XDoubleToFixed (fScale);
-            cTransform.matrix[1][1] = XDoubleToFixed (fScale);
-            cTransform.matrix[2][2] = XDoubleToFixed (1.0);
-            gchar *sFilter = NULL;
+            guint nScreenWidth = 0;
+            guint nScreenHeight = 0;
 
-            if (fScale == 0.5 || fScale == 1.0 || fScale == 2.0)
-            {
-                sFilter = "nearest";
-            }
-            else
-            {
-                sFilter = "bilinear";
-            }
+            // Get the Dpi
+            gint nDisplayHeight = DisplayHeight (pDisplay, nScreen);
+            gint nDisplayHeightMetric = DisplayHeightMM (pDisplay, nScreen);
+            gdouble fDpi = (25.4 * nDisplayHeight) / nDisplayHeightMetric;
 
-            for (gint nMode = 0; nMode < pResources->nmode; nMode++)
-            {
-                if (pCrtcInfo->mode == pResources->modes[nMode].id)
-                {
-                    if (fScale > 1.0)
-                    {
-                        nPrimaryWidth = ceil (pResources->modes[nMode].width * fScale);
-                        nPrimaryHeight = ceil (pResources->modes[nMode].height * fScale);
-                    }
-                    else
-                    {
-                        nPrimaryWidth = pResources->modes[nMode].width;
-                        nPrimaryHeight = pResources->modes[nMode].height;
-                    }
-
-                    nScreenWidth = nPrimaryWidth;
-                    nScreenHeight = nPrimaryHeight;
-
-                    break;
-                }
-            }
-
-            XRRSetCrtcTransform (pDisplay, pOutputInfo->crtc, &cTransform, sFilter, NULL, 0);
-            Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
-
-            if (nStatus != RRSetConfigSuccess)
-            {
-                g_error ("Panic: Failed to set CRTC info");
-            }
-
-            XRRFreeCrtcInfo(pCrtcInfo);
-        }
-
-        XRRFreeOutputInfo (pOutputInfo);
-
-        for (gint nOutput = 0; nOutput < pResources->noutput; nOutput++)
-        {
-            XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, pResources->outputs[nOutput]);
+            // Scale the primary display
+            guint nPrimaryWidth = 0;
+            guint nPrimaryHeight = 0;
+            RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
+            XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
 
             if (pOutputInfo->connection == RR_Connected && pOutputInfo->crtc)
             {
@@ -676,7 +605,7 @@ static void onScaleState (gpointer pUserData)
 
                 if (!pCrtcInfo)
                 {
-                    g_error ("Panic: Failed to get CRTC info");
+                    g_warning ("Panic: Failed to get CRTC info for primary display");
                     XRRFreeOutputInfo (pOutputInfo);
                     XRRFreeScreenResources (pResources);
                     XCloseDisplay (pDisplay);
@@ -684,47 +613,123 @@ static void onScaleState (gpointer pUserData)
                     return;
                 }
 
-                if (pResources->outputs[nOutput] != nOutputPrimary)
+                XTransform cTransform;
+                memset (&cTransform, 0, sizeof (cTransform));
+                cTransform.matrix[0][0] = XDoubleToFixed (fScale);
+                cTransform.matrix[1][1] = XDoubleToFixed (fScale);
+                cTransform.matrix[2][2] = XDoubleToFixed (1.0);
+                gchar *sFilter = NULL;
+
+                if (fScale == 0.5 || fScale == 1.0 || fScale == 2.0)
                 {
-                    gboolean bReposition = FALSE;
+                    sFilter = "nearest";
+                }
+                else
+                {
+                    sFilter = "bilinear";
+                }
 
-                    if (pCrtcInfo->x)
+                for (gint nMode = 0; nMode < pResources->nmode; nMode++)
+                {
+                    if (pCrtcInfo->mode == pResources->modes[nMode].id)
                     {
-                        pCrtcInfo->x = nPrimaryWidth;
-                        bReposition = TRUE;
-                    }
-
-                    if (pCrtcInfo->y)
-                    {
-                        pCrtcInfo->y = nPrimaryHeight;
-                        bReposition = TRUE;
-                    }
-
-                    if (bReposition)
-                    {
-                        Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
-
-                        if (nStatus != RRSetConfigSuccess)
+                        if (fScale > 1.0)
                         {
-                            g_error ("Panic: Failed to set CRTC info");
+                            nPrimaryWidth = ceil (pResources->modes[nMode].width * fScale);
+                            nPrimaryHeight = ceil (pResources->modes[nMode].height * fScale);
                         }
+                        else
+                        {
+                            nPrimaryWidth = pResources->modes[nMode].width;
+                            nPrimaryHeight = pResources->modes[nMode].height;
+                        }
+
+                        nScreenWidth = nPrimaryWidth;
+                        nScreenHeight = nPrimaryHeight;
+
+                        break;
                     }
                 }
 
-                nScreenWidth = MAX (nScreenWidth, pCrtcInfo->x + pCrtcInfo->width);
-                nScreenHeight = MAX (nScreenHeight, pCrtcInfo->y + pCrtcInfo->height);
+                XRRSetCrtcTransform (pDisplay, pOutputInfo->crtc, &cTransform, sFilter, NULL, 0);
+                Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
+
+                if (nStatus != RRSetConfigSuccess)
+                {
+                    g_warning ("Panic: Failed to set CRTC info for primary display");
+
+                    XRRFreeCrtcInfo(pCrtcInfo);
+
+                    return;
+                }
+
                 XRRFreeCrtcInfo(pCrtcInfo);
             }
 
             XRRFreeOutputInfo (pOutputInfo);
-        }
 
-        g_debug ("Resizing screen to: %ix%i", nScreenWidth, nScreenHeight);
-        XRRSetScreenSize (pDisplay, pWindow, nScreenWidth, nScreenHeight, (gint) ceil ((25.4 * nScreenWidth) / fDpi), (gint) ceil ((25.4 * nScreenHeight) / fDpi));
-        XRRFreeScreenResources (pResources);
-        XUngrabServer (pDisplay);
-        XCloseDisplay (pDisplay);
-        self->pPrivate->fScale = fScale;
+            for (gint nOutput = 0; nOutput < pResources->noutput; nOutput++)
+            {
+                XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, pResources->outputs[nOutput]);
+
+                if (pOutputInfo->connection == RR_Connected && pOutputInfo->crtc)
+                {
+                    XRRCrtcInfo *pCrtcInfo = XRRGetCrtcInfo (pDisplay, pResources, pOutputInfo->crtc);
+
+                    if (!pCrtcInfo)
+                    {
+                        g_warning ("Panic: Failed to get CRTC info while iterating displays");
+                        XRRFreeOutputInfo (pOutputInfo);
+                        XRRFreeScreenResources (pResources);
+                        XCloseDisplay (pDisplay);
+
+                        return;
+                    }
+
+                    if (pResources->outputs[nOutput] != nOutputPrimary)
+                    {
+                        gboolean bReposition = FALSE;
+
+                        if (pCrtcInfo->x)
+                        {
+                            pCrtcInfo->x = nPrimaryWidth;
+                            bReposition = TRUE;
+                        }
+
+                        if (pCrtcInfo->y)
+                        {
+                            pCrtcInfo->y = nPrimaryHeight;
+                            bReposition = TRUE;
+                        }
+
+                        if (bReposition)
+                        {
+                            Status nStatus = XRRSetCrtcConfig (pDisplay, pResources, pOutputInfo->crtc, CurrentTime, pCrtcInfo->x, pCrtcInfo->y, pCrtcInfo->mode, pCrtcInfo->rotation, pCrtcInfo->outputs, pCrtcInfo->noutput);
+
+                            if (nStatus != RRSetConfigSuccess)
+                            {
+                                g_warning ("Panic: Failed to set CRTC info for auxiliary display");
+
+                                return;
+                            }
+                        }
+                    }
+
+                    nScreenWidth = MAX (nScreenWidth, pCrtcInfo->x + pCrtcInfo->width);
+                    nScreenHeight = MAX (nScreenHeight, pCrtcInfo->y + pCrtcInfo->height);
+                    XRRFreeCrtcInfo(pCrtcInfo);
+                }
+
+                XRRFreeOutputInfo (pOutputInfo);
+            }
+
+            g_debug ("Resizing screen to: %ix%i", nScreenWidth, nScreenHeight);
+            XRRSetScreenSize (pDisplay, pWindow, nScreenWidth, nScreenHeight, (gint) ceil ((25.4 * nScreenWidth) / fDpi), (gint) ceil ((25.4 * nScreenHeight) / fDpi));
+            XRRFreeScreenResources (pResources);
+            XUngrabServer (pDisplay);
+            XCloseDisplay (pDisplay);
+            self->pPrivate->fScale = fScale;
+        }
     }
 }
 
@@ -746,7 +751,7 @@ static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUse
 
             if (pError)
             {
-                g_error ("Panic: Failed to toggle Orca: %s", pError->message);
+                g_warning ("Panic: Failed to toggle Orca: %s", pError->message);
                 g_error_free (pError);
 
                 return;
@@ -765,80 +770,84 @@ static void onOrcaState (GSimpleAction *pAction, GVariant* pValue, gpointer pUse
 
 static void onContrastState (GSimpleAction *pAction, GVariant* pValue, gpointer pUserData)
 {
-    g_simple_action_set_state (pAction, pValue);
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
-    gboolean bActive = g_variant_get_boolean (pValue);
 
-    if (bActive != self->pPrivate->bHighContrast)
+    if (self->pPrivate->pHighContrastSettings && self->pPrivate->pBackgroundSettings && self->pPrivate->pSettings && self->pPrivate->sHighContrast && self->pPrivate->sThemeIcon && self->pPrivate->sThemeGtk)
     {
-        self->pPrivate->bHighContrast = bActive;
+        g_simple_action_set_state (pAction, pValue);
+        gboolean bActive = g_variant_get_boolean (pValue);
 
-        if (!self->pPrivate->bGreeter)
+        if (bActive != self->pPrivate->bHighContrast)
         {
-            self->pPrivate->bIgnoreSettings = TRUE;
+            self->pPrivate->bHighContrast = bActive;
 
-            if (bActive)
+            if (!self->pPrivate->bGreeter)
             {
-                g_free (self->pPrivate->sThemeGtk);
-                g_free (self->pPrivate->sThemeIcon);
-                self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
-                self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
-                g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
-                g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", "ContrastHigh");
-                g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
-                g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
+                self->pPrivate->bIgnoreSettings = TRUE;
 
-                g_settings_set_string (self->pPrivate->pBackgroundSettings, "color-shading-type", "solid");
-                g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-filename", "");
-                g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-options", "wallpaper");
-
-                gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
-
-                if (bInverse)
+                if (bActive)
                 {
-                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+                    g_free (self->pPrivate->sThemeGtk);
+                    g_free (self->pPrivate->sThemeIcon);
+                    self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
+                    self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
+                    g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
+                    g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", "ContrastHigh");
+                    g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
+                    g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
+
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "color-shading-type", "solid");
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-filename", "");
+                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "picture-options", "wallpaper");
+
+                    gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
+
+                    if (bInverse)
+                    {
+                        g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+                    }
+                    else
+                    {
+                        g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+                    }
                 }
                 else
                 {
-                    g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+                    g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sThemeGtk);
+                    g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", self->pPrivate->sThemeIcon);
+
+                    const gchar *lProperties[] = {"color-shading-type", "picture-filename", "picture-options", "primary-color"};
+
+                    for (guint nProperty = 0; nProperty < 4; nProperty++)
+                    {
+                        gchar *sValue = g_settings_get_string (self->pPrivate->pSettings, lProperties[nProperty]);
+                        g_settings_set_string (self->pPrivate->pBackgroundSettings, lProperties[nProperty], sValue);
+                        g_free (sValue);
+                    }
                 }
+
+                self->pPrivate->bIgnoreSettings = FALSE;
             }
             else
             {
-                g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sThemeGtk);
-                g_settings_set_string (self->pPrivate->pHighContrastSettings, "icon-theme", self->pPrivate->sThemeIcon);
+                GError *pError = NULL;
+                GVariant *pParam = g_variant_new ("(b)", bActive);
+                g_dbus_connection_call_sync (self->pPrivate->pConnection, GREETER_BUS_NAME, GREETER_BUS_PATH, GREETER_BUS_NAME, "ToggleHighContrast", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
 
-                const gchar *lProperties[] = {"color-shading-type", "picture-filename", "picture-options", "primary-color"};
-
-                for (guint nProperty = 0; nProperty < 4; nProperty++)
+                if (pError)
                 {
-                    gchar *sValue = g_settings_get_string (self->pPrivate->pSettings, lProperties[nProperty]);
-                    g_settings_set_string (self->pPrivate->pBackgroundSettings, lProperties[nProperty], sValue);
-                    g_free (sValue);
+                    g_warning ("Panic: Failed to toggle high contrast: %s", pError->message);
+                    g_error_free (pError);
+
+                    return;
                 }
             }
 
-            self->pPrivate->bIgnoreSettings = FALSE;
-        }
-        else
-        {
-            GError *pError = NULL;
-            GVariant *pParam = g_variant_new ("(b)", bActive);
-            g_dbus_connection_call_sync (self->pPrivate->pConnection, GREETER_BUS_NAME, GREETER_BUS_PATH, GREETER_BUS_NAME, "ToggleHighContrast", pParam, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &pError);
-
-            if (pError)
+            if (!self->pPrivate->bReadingAccountsService)
             {
-                g_error ("Panic: Failed to toggle high contrast: %s", pError->message);
-                g_error_free (pError);
-
-                return;
+                GVariant *pValue = g_variant_new ("b", bActive);
+                setAccountsService (self, "contrast", pValue);
             }
-        }
-
-        if (!self->pPrivate->bReadingAccountsService)
-        {
-            GVariant *pValue = g_variant_new ("b", bActive);
-            setAccountsService (self, "contrast", pValue);
         }
     }
 }
@@ -847,11 +856,14 @@ static void onBackgroundSettings (GSettings *pSettings, const gchar *sKey, gpoin
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    if (!self->pPrivate->bHighContrast)
+    if (self->pPrivate->pBackgroundSettings && self->pPrivate->pSettings)
     {
-        gchar *sValue = g_settings_get_string (self->pPrivate->pBackgroundSettings, sKey);
-        g_settings_set_string (self->pPrivate->pSettings, sKey, sValue);
-        g_free (sValue);
+        if (!self->pPrivate->bHighContrast)
+        {
+            gchar *sValue = g_settings_get_string (self->pPrivate->pBackgroundSettings, sKey);
+            g_settings_set_string (self->pPrivate->pSettings, sKey, sValue);
+            g_free (sValue);
+        }
     }
 }
 
@@ -859,29 +871,32 @@ static void onContrastThemeSettings (GSettings *pSettings, const gchar *sKey, gp
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    if (self->pPrivate->sHighContrast)
+    if (self->pPrivate->pHighContrastSettings && self->pPrivate->pBackgroundSettings && self->pPrivate->pSettings && self->pPrivate->sHighContrast)
     {
-        g_free (self->pPrivate->sHighContrast);
-    }
-
-    self->pPrivate->sHighContrast = g_settings_get_string (self->pPrivate->pSettings, "high-contrast");
-
-    if (self->pPrivate->bHighContrast)
-    {
-        self->pPrivate->bIgnoreSettings = TRUE;
-        g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
-        gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
-
-        if (bInverse)
+        if (self->pPrivate->sHighContrast)
         {
-            g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
-        }
-        else
-        {
-            g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+            g_free (self->pPrivate->sHighContrast);
         }
 
-        self->pPrivate->bIgnoreSettings = FALSE;
+        self->pPrivate->sHighContrast = g_settings_get_string (self->pPrivate->pSettings, "high-contrast");
+
+        if (self->pPrivate->bHighContrast)
+        {
+            self->pPrivate->bIgnoreSettings = TRUE;
+            g_settings_set_string (self->pPrivate->pHighContrastSettings, "gtk-theme", self->pPrivate->sHighContrast);
+            gboolean bInverse = g_str_equal (self->pPrivate->sHighContrast, "HighContrastInverse");
+
+            if (bInverse)
+            {
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(0,0,0)");
+            }
+            else
+            {
+                g_settings_set_string (self->pPrivate->pBackgroundSettings, "primary-color", "rgb(255,255,255)");
+            }
+
+            self->pPrivate->bIgnoreSettings = FALSE;
+        }
     }
 }
 
@@ -889,36 +904,39 @@ static void onContrastSettings (GSettings *pSettings, const gchar *sKey, gpointe
 {
     IndicatorA11yService *self = INDICATOR_A11Y_SERVICE (pUserData);
 
-    if (self->pPrivate->bIgnoreSettings)
+    if (self->pPrivate->pHighContrastSettings && self->pPrivate->pSettings && self->pPrivate->sThemeIcon && self->pPrivate->sThemeGtk)
     {
-        return;
-    }
+        if (self->pPrivate->bIgnoreSettings)
+        {
+            return;
+        }
 
-    gboolean bThemeGtk = g_str_equal (sKey, "gtk-theme");
-    gboolean bThemeIcon = g_str_equal (sKey, "icon-theme");
+        gboolean bThemeGtk = g_str_equal (sKey, "gtk-theme");
+        gboolean bThemeIcon = g_str_equal (sKey, "icon-theme");
 
-    if (bThemeGtk)
-    {
-        g_free (self->pPrivate->sThemeGtk);
-        self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
-        g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
-    }
-    else if (bThemeIcon)
-    {
-        g_free (self->pPrivate->sThemeIcon);
-        self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
-        g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
-    }
+        if (bThemeGtk)
+        {
+            g_free (self->pPrivate->sThemeGtk);
+            self->pPrivate->sThemeGtk = g_settings_get_string (self->pPrivate->pHighContrastSettings, "gtk-theme");
+            g_settings_set_string (self->pPrivate->pSettings, "gtk-theme", self->pPrivate->sThemeGtk);
+        }
+        else if (bThemeIcon)
+        {
+            g_free (self->pPrivate->sThemeIcon);
+            self->pPrivate->sThemeIcon = g_settings_get_string (self->pPrivate->pHighContrastSettings, "icon-theme");
+            g_settings_set_string (self->pPrivate->pSettings, "icon-theme", self->pPrivate->sThemeIcon);
+        }
 
-    bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh") || g_str_equal (self->pPrivate->sThemeGtk, "HighContrastInverse");
-    bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
-    gboolean bHighContrast = (bThemeGtk && bThemeIcon);
+        bThemeGtk = g_str_equal (self->pPrivate->sThemeGtk, "ContrastHigh") || g_str_equal (self->pPrivate->sThemeGtk, "HighContrastInverse");
+        bThemeIcon = g_str_equal (self->pPrivate->sThemeIcon, "ContrastHigh");
+        gboolean bHighContrast = (bThemeGtk && bThemeIcon);
 
-    if (self->pPrivate->bHighContrast != bHighContrast)
-    {
-        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "contrast");
-        GVariant *pValue = g_variant_new_boolean (bHighContrast);
-        g_action_change_state (pAction, pValue);
+        if (self->pPrivate->bHighContrast != bHighContrast)
+        {
+            GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "contrast");
+            GVariant *pValue = g_variant_new_boolean (bHighContrast);
+            g_action_change_state (pAction, pValue);
+        }
     }
 }
 
@@ -938,29 +956,32 @@ static GVariant* valueToVariant (const GValue *pValue, const GVariantType *pType
 
 static void setAccelerator (GMenuItem *pItem, gchar *sKey, IndicatorA11yService *self)
 {
-    if (!self->pPrivate->bGreeter)
+    if (self->pPrivate->pKeybindingSettings)
     {
-        gchar *sAccelerator = NULL;
-        gboolean bMate = ayatana_common_utils_is_mate ();
-
-        if (bMate)
+        if (!self->pPrivate->bGreeter)
         {
-            sAccelerator = g_settings_get_string (self->pPrivate->pKeybindingSettings, sKey);
+            gchar *sAccelerator = NULL;
+            gboolean bMate = ayatana_common_utils_is_mate ();
 
-            if (sAccelerator)
+            if (bMate)
             {
-                g_menu_item_set_attribute (pItem, "accel", "s", sAccelerator);
-                g_free (sAccelerator);
+                sAccelerator = g_settings_get_string (self->pPrivate->pKeybindingSettings, sKey);
+
+                if (sAccelerator)
+                {
+                    g_menu_item_set_attribute (pItem, "accel", "s", sAccelerator);
+                    g_free (sAccelerator);
+                }
             }
-        }
-        else
-        {
-            gchar **lAccelerators = g_settings_get_strv (self->pPrivate->pKeybindingSettings, sKey);
-
-            if (lAccelerators)
+            else
             {
-                g_menu_item_set_attribute (pItem, "accel", "s", lAccelerators[0]);
-                g_strfreev (lAccelerators);
+                gchar **lAccelerators = g_settings_get_strv (self->pPrivate->pKeybindingSettings, sKey);
+
+                if (lAccelerators)
+                {
+                    g_menu_item_set_attribute (pItem, "accel", "s", lAccelerators[0]);
+                    g_strfreev (lAccelerators);
+                }
             }
         }
     }
@@ -993,72 +1014,65 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!pDisplay)
     {
-        g_error ("Panic: Failed to open X display");
-
-        return;
-    }
-
-    guint nScreen = DefaultScreen (pDisplay);
-    Window pWindow = RootWindow (pDisplay, nScreen);
-    XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
-
-    if (!pResources)
-    {
-        g_error ("Panic: Failed to get screen resources");
-        XCloseDisplay (pDisplay);
-
-        return;
-    }
-
-    RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
-    XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
-    GRegex *pRegex = NULL;
-
-    #if GLIB_CHECK_VERSION(2, 73, 0)
-        pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, G_REGEX_MATCH_DEFAULT, &pError);
-    #else
-        pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, (GRegexMatchFlags) 0, &pError);
-    #endif
-
-    if (!pError)
-    {
-        #if GLIB_CHECK_VERSION(2, 73, 0)
-            gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, G_REGEX_MATCH_DEFAULT, NULL);
-        #else
-            gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, (GRegexMatchFlags) 0, NULL);
-        #endif
-
-        if (bMatch)
-        {
-            self->pPrivate->bVirtualX = TRUE;
-        }
-
-        g_regex_unref (pRegex);
+        g_warning ("Panic: Failed to open X display while checking for virtual environment");
     }
     else
     {
-        g_error ("PANIC: Failed to compile regex: %s", pError->message);
-        g_error_free (pError);
-        XRRFreeOutputInfo (pOutputInfo);
-        XRRFreeScreenResources (pResources);
-        XCloseDisplay (pDisplay);
+        guint nScreen = DefaultScreen (pDisplay);
+        Window pWindow = RootWindow (pDisplay, nScreen);
+        XRRScreenResources *pResources = XRRGetScreenResources (pDisplay, pWindow);
 
-        return;
+        if (!pResources)
+        {
+            g_warning ("Panic: Failed to get screen resources while checking for virtual environment");
+            XCloseDisplay (pDisplay);
+        }
+        else
+        {
+            RROutput nOutputPrimary = XRRGetOutputPrimary (pDisplay, pWindow);
+            XRROutputInfo *pOutputInfo = XRRGetOutputInfo (pDisplay, pResources, nOutputPrimary);
+            GRegex *pRegex = NULL;
+
+            #if GLIB_CHECK_VERSION(2, 73, 0)
+                pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, G_REGEX_MATCH_DEFAULT, &pError);
+            #else
+                pRegex = g_regex_new (".*virtual.*", G_REGEX_CASELESS, (GRegexMatchFlags) 0, &pError);
+            #endif
+
+            if (!pError)
+            {
+                #if GLIB_CHECK_VERSION(2, 73, 0)
+                    gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, G_REGEX_MATCH_DEFAULT, NULL);
+                #else
+                    gboolean bMatch = g_regex_match (pRegex, pOutputInfo->name, (GRegexMatchFlags) 0, NULL);
+                #endif
+
+                if (bMatch)
+                {
+                    self->pPrivate->bVirtualX = TRUE;
+                }
+
+                g_regex_unref (pRegex);
+            }
+            else
+            {
+                g_warning ("Panic: Failed to compile regex: %s", pError->message);
+                g_error_free (pError);
+            }
+
+            XRRFreeOutputInfo (pOutputInfo);
+            XRRFreeScreenResources (pResources);
+            XCloseDisplay (pDisplay);
+        }
     }
-
-    XRRFreeOutputInfo (pOutputInfo);
-    XRRFreeScreenResources (pResources);
-    XCloseDisplay (pDisplay);
     //~ Check if we are in a virtual environment
 
     self->pPrivate->pAccountsServiceConnection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &pError);
 
     if (pError)
     {
-        g_error ("Panic: Failed connecting to the system bus: %s", pError->message);
+        g_warning ("Panic: Failed connecting to the system bus: %s", pError->message);
         g_error_free (pError);
-
-        return;
     }
 
     self->pPrivate->pConnection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &pError);
@@ -1094,7 +1108,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.gnome.desktop.a11y.applications schema found");
+                    g_warning ("Panic: No org.gnome.desktop.a11y.applications schema found");
                 }
 
                 /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
@@ -1108,7 +1122,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.gnome.desktop.a11y.interface schema found");
+                    g_warning ("Panic: No org.gnome.desktop.a11y.interface schema found");
                 }*/
 
                 gboolean bMate = ayatana_common_utils_is_mate ();
@@ -1132,7 +1146,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No %s schema found", sInterface);
+                    g_warning ("Panic: No %s schema found", sInterface);
                 }
 
                 pSchema = g_settings_schema_source_lookup (pSource, "org.gnome.desktop.a11y.applications", FALSE);
@@ -1144,7 +1158,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.gnome.desktop.a11y.applications schema found");
+                    g_warning ("Panic: No org.gnome.desktop.a11y.applications schema found");
                 }
 
                 pSchema = g_settings_schema_source_lookup (pSource, "org.mate.interface", FALSE);
@@ -1177,7 +1191,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.mate.interface schema found");
+                    g_warning ("Panic: No org.mate.interface schema found");
                 }
 
                 pSchema = g_settings_schema_source_lookup (pSource, "org.mate.background", FALSE);
@@ -1195,7 +1209,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.mate.background schema found");
+                    g_warning ("Panic: No org.mate.background schema found");
                 }
 
                 pSchema = g_settings_schema_source_lookup (pSource, "org.mate.screensaver", FALSE);
@@ -1231,12 +1245,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
                 }
                 else
                 {
-                    g_error ("Panic: No org.mate.screensaver schema found");
+                    g_warning ("Panic: No org.mate.screensaver schema found");
                 }
             }
             else
             {
-                g_error ("Panic: No org.ayatana.indicator.a11y schema found");
+                g_warning ("Panic: No org.ayatana.indicator.a11y schema found");
             }
         }
 
@@ -1262,7 +1276,7 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
             }
             else
             {
-                g_error ("Panic: No greeter schema found");
+                g_warning ("Panic: No greeter schema found");
             }
         }
 
@@ -1284,18 +1298,30 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     if (!self->pPrivate->bGreeter)
     {
         /* This is what we should use, but not all applications react to "high-contrast" setting (yet)
-        g_settings_bind_with_mapping (self->pPrivate->pHighContrastSettings, "high-contrast", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);*/
+        if (self->pPrivate->pHighContrastSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pHighContrastSettings, "high-contrast", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }*/
 
         // Workaround for applications that do not react to "high-contrast" setting
-        g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::gtk-theme", G_CALLBACK (onContrastSettings), self);
-        g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::icon-theme", G_CALLBACK (onContrastSettings), self);
+        if (self->pPrivate->pHighContrastSettings)
+        {
+            g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::gtk-theme", G_CALLBACK (onContrastSettings), self);
+            g_signal_connect (self->pPrivate->pHighContrastSettings, "changed::icon-theme", G_CALLBACK (onContrastSettings), self);
+        }
 
-        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::color-shading-type", G_CALLBACK (onBackgroundSettings), self);
-        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-filename", G_CALLBACK (onBackgroundSettings), self);
-        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-options", G_CALLBACK (onBackgroundSettings), self);
-        g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::primary-color", G_CALLBACK (onBackgroundSettings), self);
+        if (self->pPrivate->pBackgroundSettings)
+        {
+            g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::color-shading-type", G_CALLBACK (onBackgroundSettings), self);
+            g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-filename", G_CALLBACK (onBackgroundSettings), self);
+            g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::picture-options", G_CALLBACK (onBackgroundSettings), self);
+            g_signal_connect (self->pPrivate->pBackgroundSettings, "changed::primary-color", G_CALLBACK (onBackgroundSettings), self);
+        }
 
-        g_signal_connect (self->pPrivate->pSettings, "changed::high-contrast", G_CALLBACK (onContrastThemeSettings), self);
+        if (self->pPrivate->pSettings)
+        {
+            g_signal_connect (self->pPrivate->pSettings, "changed::high-contrast", G_CALLBACK (onContrastThemeSettings), self);
+        }
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
@@ -1307,7 +1333,10 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!self->pPrivate->bGreeter)
     {
-        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-keyboard-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        if (self->pPrivate->pApplicationsSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-keyboard-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
@@ -1319,8 +1348,15 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!self->pPrivate->bGreeter)
     {
-        g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
-        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        if (self->pPrivate->pOrcaSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pOrcaSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }
+
+        if (self->pPrivate->pApplicationsSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-reader-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
@@ -1332,7 +1368,10 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!self->pPrivate->bGreeter)
     {
-        g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-magnifier-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        if (self->pPrivate->pApplicationsSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pApplicationsSettings, "screen-magnifier-enabled", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }
     }
 
     g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
@@ -1343,10 +1382,19 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
     {
         GVariant *pScale = g_variant_new_double (1.0);
         pSimpleAction = g_simple_action_new_stateful ("scale", G_VARIANT_TYPE_DOUBLE, pScale);
-        g_settings_bind_with_mapping (self->pPrivate->pSettings, "scale", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+
+        if (self->pPrivate->pSettings)
+        {
+            g_settings_bind_with_mapping (self->pPrivate->pSettings, "scale", pSimpleAction, "state", G_SETTINGS_BIND_DEFAULT, valueFromVariant, valueToVariant, NULL, NULL);
+        }
+
         g_action_map_add_action (G_ACTION_MAP (self->pPrivate->pActionGroup), G_ACTION (pSimpleAction));
         g_object_unref (G_OBJECT (pSimpleAction));
-        g_signal_connect_swapped (self->pPrivate->pSettings, "changed::scale", G_CALLBACK (onScaleState), self);
+
+        if (self->pPrivate->pSettings)
+        {
+            g_signal_connect_swapped (self->pPrivate->pSettings, "changed::scale", G_CALLBACK (onScaleState), self);
+        }
     }
 
     // Add sections to the submenu
@@ -1418,9 +1466,12 @@ static void indicator_a11y_service_init (IndicatorA11yService *self)
 
     if (!self->pPrivate->bGreeter && !self->pPrivate->bVirtualX)
     {
-        GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "scale");
-        GVariant *pScale = g_settings_get_value (self->pPrivate->pSettings, "scale");
-        g_action_change_state (pAction, pScale);
+        if (self->pPrivate->pSettings)
+        {
+            GAction *pAction = g_action_map_lookup_action (G_ACTION_MAP (self->pPrivate->pActionGroup), "scale");
+            GVariant *pScale = g_settings_get_value (self->pPrivate->pSettings, "scale");
+            g_action_change_state (pAction, pScale);
+        }
 
         gint nUid = geteuid ();
         getAccountsService (self, nUid);
